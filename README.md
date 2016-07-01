@@ -4,7 +4,6 @@ Ceph is a distributed storage and network file system designed to provide
 excellent performance, reliability, and scalability.
 
 This charm deploys a Ceph cluster.
-juju
 
 # Usage
 
