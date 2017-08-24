@@ -13,7 +13,6 @@ series:
   - xenial
   - zesty
   - trusty
-  - yakkety
 peers:
   mon:
     interface: ceph

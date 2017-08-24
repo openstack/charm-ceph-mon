@@ -20,13 +20,13 @@ from mock import (
     patch,
 )
 
-from ceph import ceph_broker
+from ceph import broker
 
 
 class TestCephOps(unittest.TestCase):
 
-    @patch.object(ceph_broker, 'create_erasure_profile')
-    @patch.object(ceph_broker, 'log', lambda *args, **kwargs: None)
+    @patch.object(broker, 'create_erasure_profile')
+    @patch.object(broker, 'log', lambda *args, **kwargs: None)
     def test_create_erasure_profile(self, mock_create_erasure):
         req = json.dumps({'api-version': 1,
                           'ops': [{
@@ -37,7 +37,7 @@ class TestCephOps(unittest.TestCase):
                               'k': 3,
                               'm': 2,
                           }]})
-        rc = ceph_broker.process_requests(req)
+        rc = broker.process_requests(req)
         mock_create_erasure.assert_called_with(service='admin',
                                                profile_name='foo',
                                                coding_chunks=2,
@@ -47,9 +47,9 @@ class TestCephOps(unittest.TestCase):
                                                erasure_plugin_name='jerasure')
         self.assertEqual(json.loads(rc), {'exit-code': 0})
 
-    @patch.object(ceph_broker, 'pool_exists')
-    @patch.object(ceph_broker, 'ReplicatedPool')
-    @patch.object(ceph_broker, 'log', lambda *args, **kwargs: None)
+    @patch.object(broker, 'pool_exists')
+    @patch.object(broker, 'ReplicatedPool')
+    @patch.object(broker, 'log', lambda *args, **kwargs: None)
     def test_process_requests_create_replicated_pool(self,
                                                      mock_replicated_pool,
                                                      mock_pool_exists):
@@ -61,15 +61,15 @@ class TestCephOps(unittest.TestCase):
                                'name': 'foo',
                                'replicas': 3
                            }]})
-        rc = ceph_broker.process_requests(reqs)
+        rc = broker.process_requests(reqs)
         mock_pool_exists.assert_called_with(service='admin', name='foo')
         calls = [call(name=u'foo', service='admin', replicas=3)]
         mock_replicated_pool.assert_has_calls(calls)
         self.assertEqual(json.loads(rc), {'exit-code': 0})
 
-    @patch.object(ceph_broker, 'pool_exists')
-    @patch.object(ceph_broker, 'ReplicatedPool')
-    @patch.object(ceph_broker, 'log', lambda *args, **kwargs: None)
+    @patch.object(broker, 'pool_exists')
+    @patch.object(broker, 'ReplicatedPool')
+    @patch.object(broker, 'log', lambda *args, **kwargs: None)
     def test_process_requests_replicated_pool_weight(self,
                                                      mock_replicated_pool,
                                                      mock_pool_exists):
@@ -82,15 +82,15 @@ class TestCephOps(unittest.TestCase):
                                'weight': 40.0,
                                'replicas': 3
                            }]})
-        rc = ceph_broker.process_requests(reqs)
+        rc = broker.process_requests(reqs)
         mock_pool_exists.assert_called_with(service='admin', name='foo')
         calls = [call(name=u'foo', service='admin', replicas=3,
                       percent_data=40.0)]
         mock_replicated_pool.assert_has_calls(calls)
         self.assertEqual(json.loads(rc), {'exit-code': 0})
 
-    @patch.object(ceph_broker, 'delete_pool')
-    @patch.object(ceph_broker, 'log', lambda *args, **kwargs: None)
+    @patch.object(broker, 'delete_pool')
+    @patch.object(broker, 'log', lambda *args, **kwargs: None)
     def test_process_requests_delete_pool(self,
                                           mock_delete_pool):
         reqs = json.dumps({'api-version': 1,
@@ -99,14 +99,14 @@ class TestCephOps(unittest.TestCase):
                                'name': 'foo',
                            }]})
         mock_delete_pool.return_value = {'exit-code': 0}
-        rc = ceph_broker.process_requests(reqs)
+        rc = broker.process_requests(reqs)
         mock_delete_pool.assert_called_with(service='admin', name='foo')
         self.assertEqual(json.loads(rc), {'exit-code': 0})
 
-    @patch.object(ceph_broker, 'pool_exists')
-    @patch.object(ceph_broker.ErasurePool, 'create')
-    @patch.object(ceph_broker, 'erasure_profile_exists')
-    @patch.object(ceph_broker, 'log', lambda *args, **kwargs: None)
+    @patch.object(broker, 'pool_exists')
+    @patch.object(broker.ErasurePool, 'create')
+    @patch.object(broker, 'erasure_profile_exists')
+    @patch.object(broker, 'log', lambda *args, **kwargs: None)
     def test_process_requests_create_erasure_pool(self, mock_profile_exists,
                                                   mock_erasure_pool,
                                                   mock_pool_exists):
@@ -118,15 +118,15 @@ class TestCephOps(unittest.TestCase):
                                'name': 'foo',
                                'erasure-profile': 'default'
                            }]})
-        rc = ceph_broker.process_requests(reqs)
+        rc = broker.process_requests(reqs)
         mock_profile_exists.assert_called_with(service='admin', name='default')
         mock_pool_exists.assert_called_with(service='admin', name='foo')
         mock_erasure_pool.assert_called_with()
         self.assertEqual(json.loads(rc), {'exit-code': 0})
 
-    @patch.object(ceph_broker, 'pool_exists')
-    @patch.object(ceph_broker.Pool, 'add_cache_tier')
-    @patch.object(ceph_broker, 'log', lambda *args, **kwargs: None)
+    @patch.object(broker, 'pool_exists')
+    @patch.object(broker.Pool, 'add_cache_tier')
+    @patch.object(broker, 'log', lambda *args, **kwargs: None)
     def test_process_requests_create_cache_tier(self, mock_pool,
                                                 mock_pool_exists):
         mock_pool_exists.return_value = True
@@ -138,16 +138,16 @@ class TestCephOps(unittest.TestCase):
                                'mode': 'writeback',
                                'erasure-profile': 'default'
                            }]})
-        rc = ceph_broker.process_requests(reqs)
+        rc = broker.process_requests(reqs)
         mock_pool_exists.assert_any_call(service='admin', name='foo')
         mock_pool_exists.assert_any_call(service='admin', name='foo-ssd')
 
         mock_pool.assert_called_with(cache_pool='foo-ssd', mode='writeback')
         self.assertEqual(json.loads(rc), {'exit-code': 0})
 
-    @patch.object(ceph_broker, 'pool_exists')
-    @patch.object(ceph_broker.Pool, 'remove_cache_tier')
-    @patch.object(ceph_broker, 'log', lambda *args, **kwargs: None)
+    @patch.object(broker, 'pool_exists')
+    @patch.object(broker.Pool, 'remove_cache_tier')
+    @patch.object(broker, 'log', lambda *args, **kwargs: None)
     def test_process_requests_remove_cache_tier(self, mock_pool,
                                                 mock_pool_exists):
         mock_pool_exists.return_value = True
@@ -156,14 +156,14 @@ class TestCephOps(unittest.TestCase):
                                'op': 'remove-cache-tier',
                                'hot-pool': 'foo-ssd',
                            }]})
-        rc = ceph_broker.process_requests(reqs)
+        rc = broker.process_requests(reqs)
         mock_pool_exists.assert_any_call(service='admin', name='foo-ssd')
 
         mock_pool.assert_called_with(cache_pool='foo-ssd')
         self.assertEqual(json.loads(rc), {'exit-code': 0})
 
-    @patch.object(ceph_broker, 'snapshot_pool')
-    @patch.object(ceph_broker, 'log', lambda *args, **kwargs: None)
+    @patch.object(broker, 'snapshot_pool')
+    @patch.object(broker, 'log', lambda *args, **kwargs: None)
     def test_snapshot_pool(self, mock_snapshot_pool):
         reqs = json.dumps({'api-version': 1,
                            'ops': [{
@@ -172,14 +172,14 @@ class TestCephOps(unittest.TestCase):
                                'snapshot-name': 'foo-snap1',
                            }]})
         mock_snapshot_pool.return_value = {'exit-code': 0}
-        rc = ceph_broker.process_requests(reqs)
+        rc = broker.process_requests(reqs)
         mock_snapshot_pool.assert_called_with(service='admin',
                                               pool_name='foo',
                                               snapshot_name='foo-snap1')
         self.assertEqual(json.loads(rc), {'exit-code': 0})
 
-    @patch.object(ceph_broker, 'rename_pool')
-    @patch.object(ceph_broker, 'log', lambda *args, **kwargs: None)
+    @patch.object(broker, 'rename_pool')
+    @patch.object(broker, 'log', lambda *args, **kwargs: None)
     def test_rename_pool(self, mock_rename_pool):
         reqs = json.dumps({'api-version': 1,
                            'ops': [{
@@ -188,14 +188,14 @@ class TestCephOps(unittest.TestCase):
                                'new-name': 'foo2',
                            }]})
         mock_rename_pool.return_value = {'exit-code': 0}
-        rc = ceph_broker.process_requests(reqs)
+        rc = broker.process_requests(reqs)
         mock_rename_pool.assert_called_with(service='admin',
                                             old_name='foo',
                                             new_name='foo2')
         self.assertEqual(json.loads(rc), {'exit-code': 0})
 
-    @patch.object(ceph_broker, 'remove_pool_snapshot')
-    @patch.object(ceph_broker, 'log', lambda *args, **kwargs: None)
+    @patch.object(broker, 'remove_pool_snapshot')
+    @patch.object(broker, 'log', lambda *args, **kwargs: None)
     def test_remove_pool_snapshot(self, mock_snapshot_pool):
         reqs = json.dumps({'api-version': 1,
                            'ops': [{
@@ -204,14 +204,14 @@ class TestCephOps(unittest.TestCase):
                                'snapshot-name': 'foo-snap1',
                            }]})
         mock_snapshot_pool.return_value = {'exit-code': 0}
-        rc = ceph_broker.process_requests(reqs)
+        rc = broker.process_requests(reqs)
         mock_snapshot_pool.assert_called_with(service='admin',
                                               pool_name='foo',
                                               snapshot_name='foo-snap1')
         self.assertEqual(json.loads(rc), {'exit-code': 0})
 
-    @patch.object(ceph_broker, 'pool_set')
-    @patch.object(ceph_broker, 'log', lambda *args, **kwargs: None)
+    @patch.object(broker, 'pool_set')
+    @patch.object(broker, 'log', lambda *args, **kwargs: None)
     def test_set_pool_value(self, mock_set_pool):
         reqs = json.dumps({'api-version': 1,
                            'ops': [{
@@ -221,14 +221,14 @@ class TestCephOps(unittest.TestCase):
                                'value': 3,
                            }]})
         mock_set_pool.return_value = {'exit-code': 0}
-        rc = ceph_broker.process_requests(reqs)
+        rc = broker.process_requests(reqs)
         mock_set_pool.assert_called_with(service='admin',
                                          pool_name='foo',
                                          key='size',
                                          value=3)
         self.assertEqual(json.loads(rc), {'exit-code': 0})
 
-    @patch.object(ceph_broker, 'log', lambda *args, **kwargs: None)
+    @patch.object(broker, 'log', lambda *args, **kwargs: None)
     def test_set_invalid_pool_value(self):
         reqs = json.dumps({'api-version': 1,
                            'ops': [{
@@ -237,5 +237,5 @@ class TestCephOps(unittest.TestCase):
                                'key': 'size',
                                'value': 'abc',
                            }]})
-        rc = ceph_broker.process_requests(reqs)
+        rc = broker.process_requests(reqs)
         self.assertEqual(json.loads(rc)['exit-code'], 1)

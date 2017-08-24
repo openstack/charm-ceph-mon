@@ -16,16 +16,16 @@
 
 import os
 import subprocess
+import socket
 import sys
 import uuid
 
 sys.path.append('lib')
-import ceph
-from ceph.ceph_broker import (
+import ceph.utils as ceph
+from ceph.broker import (
     process_requests
 )
 
-from charmhelpers.core import host
 from charmhelpers.core import hookenv
 from charmhelpers.core.hookenv import (
     log,
@@ -89,12 +89,6 @@ STATUS_CRONFILE = '/etc/cron.d/cat-ceph-health'
 def check_for_upgrade():
     if not ceph.is_bootstrapped():
         log("Ceph is not bootstrapped, skipping upgrade checks.")
-        return
-
-    release_info = host.lsb_release()
-    if not release_info['DISTRIB_CODENAME'] == 'trusty':
-        log("Invalid upgrade path from {}.  Only trusty is currently "
-            "supported".format(release_info['DISTRIB_CODENAME']))
         return
 
     c = hookenv.config()
@@ -225,6 +219,9 @@ def config_changed():
         status_set('maintenance', 'Bootstrapping single Ceph MON')
         ceph.bootstrap_monitor_cluster(leader_get('monitor-secret'))
         ceph.wait_for_bootstrap()
+        if cmp_pkgrevno('ceph', '12.0.0') >= 0:
+            status_set('maintenance', 'Bootstrapping single Ceph MGR')
+            ceph.bootstrap_manager()
 
 
 def get_mon_hosts():
@@ -280,6 +277,9 @@ def mon_relation():
         ceph.bootstrap_monitor_cluster(leader_get('monitor-secret'))
         ceph.wait_for_bootstrap()
         ceph.wait_for_quorum()
+        if cmp_pkgrevno('ceph', '12.0.0') >= 0:
+            status_set('maintenance', 'Bootstrapping Ceph MGR')
+            ceph.bootstrap_manager()
         # If we can and want to
         if is_leader() and config('customize-failure-domain'):
             # But only if the environment supports it
@@ -496,6 +496,8 @@ def client_relation_joined(relid=None):
             data = {'key': ceph.get_named_key(service_name),
                     'auth': config('auth-supported'),
                     'ceph-public-address': public_addr}
+            if config('rbd-features'):
+                data['rbd_features'] = config('rbd-features')
             relation_set(relation_id=relid,
                          relation_settings=data)
     else:
@@ -545,6 +547,8 @@ def start():
         service_restart('ceph-mon')
     else:
         service_restart('ceph-mon-all')
+    if cmp_pkgrevno('ceph', '12.0.0') >= 0:
+        service_restart('ceph-mgr@{}'.format(socket.gethostname()))
 
 
 @hooks.hook('nrpe-external-master-relation-joined')

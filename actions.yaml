@@ -214,3 +214,15 @@ pool-get:
       description: Any valid Ceph key from http://docs.ceph.com/docs/master/rados/operations/pools/#get-pool-values
   required: [key, pool-name]
   additionalProperties: false
+crushmap-update:
+  description: |
+    Apply a json crushmap definition.  This will throw away the existing
+    ceph crushmap and apply the new definition.  Use with extreme caution.
+    WARNING - This function is extremely dangerous if misused. It can very
+    easily break your cluster in unexpected ways.
+  params:
+    map:
+      type: string
+      description: The json crushmap blob
+  required: [map]
+  additionalProperties: false

@@ -1,45 +1,74 @@
 options:
   loglevel:
-    default: 1
     type: int
+    default: 1
     description: Mon and OSD debug level. Max is 20.
+  use-syslog:
+    type: boolean
+    default: False
+    description: |
+      If set to True, supporting services will log to syslog.
+  source:
+    type: string
+    default:
+    description: |
+      Optional configuration to support use of additional sources such as:
+      .
+        - ppa:myteam/ppa
+        - cloud:xenial-proposed/ocata
+        - http://my.archive.com/ubuntu main
+      .
+      The last option should be used in conjunction with the key configuration
+      option.
+  key:
+    type: string
+    default:
+    description: |
+      Key ID to import to the apt keyring to support use with arbitary source
+      configuration from outside of Launchpad archives or PPA's.
+  harden:
+    type: string
+    default:
+    description: |
+      Apply system hardening. Supports a space-delimited list of modules
+      to run. Supported modules currently include os, ssh, apache and mysql.
   fsid:
     type: string
     default:
     description: |
       The unique identifier (fsid) of the Ceph cluster.
-
-      To generate a suitable value use `uuid`.
+      .
+      To generate a suitable value use `uuidgen`.
       If left empty, an fsid will be generated.
-
+      .
       NOTE: Changing this configuration after deployment is not supported and
       new service units will not be able to join the cluster.
   config-flags:
     type: string
     default:
     description: |
-        User provided Ceph configuration. Supports a string representation of
-        a python dictionary where each top-level key represents a section in
-        the ceph.conf template. You may only use sections supported in the
-        template.
-        .
-        WARNING: this is not the recommended way to configure the underlying
-        services that this charm installs and is used at the user's own risk.
-        This option is mainly provided as a stop-gap for users that either
-        want to test the effect of modifying some config or who have found
-        a critical bug in the way the charm has configured their services
-        and need it fixed immediately. We ask that whenever this is used,
-        that the user consider opening a bug on this charm at
-        http://bugs.launchpad.net/charms providing an explanation of why the
-        config was needed so that we may consider it for inclusion as a
-        natively supported config in the the charm.
+      User provided Ceph configuration. Supports a string representation of
+      a python dictionary where each top-level key represents a section in
+      the ceph.conf template. You may only use sections supported in the
+      template.
+      .
+      WARNING: this is not the recommended way to configure the underlying
+      services that this charm installs and is used at the user's own risk.
+      This option is mainly provided as a stop-gap for users that either
+      want to test the effect of modifying some config or who have found
+      a critical bug in the way the charm has configured their services
+      and need it fixed immediately. We ask that whenever this is used,
+      that the user consider opening a bug on this charm at
+      http://bugs.launchpad.net/charms providing an explanation of why the
+      config was needed so that we may consider it for inclusion as a
+      natively supported config in the the charm.
   auth-supported:
     type: string
     default: cephx
     description: |
       Which authentication flavour to use.
       .
-      Valid options are "cephx" and "none".  If "none" is specified,
+      Valid options are "cephx" and "none". If "none" is specified,
       keys will still be created and deployed so that it can be
       enabled later.
   monitor-secret:
@@ -48,44 +77,50 @@ options:
     description: |
       The Ceph secret key used by Ceph monitors. This value will become the
       mon.key. To generate a suitable value use:
-
+      .
         ceph-authtool /dev/stdout --name=mon. --gen-key
-
+      .
       If left empty, a secret key will be generated.
-
+      .
       NOTE: Changing this configuration after deployment is not supported and
       new service units will not be able to join the cluster.
   monitor-count:
     type: int
     default: 3
     description: |
-      How many nodes to wait for before trying to create the monitor cluster
-      this number needs to be odd, and more than three is a waste except for
-      very large clusters.
+      Number of ceph-mon units to wait for before attempting to bootstrap the
+      monitor cluster. For production clusters the default value of 3 ceph-mon
+      units is normally a good choice.
+      .
+      For test and development environments you can enable single-unit
+      deployment by setting this to 1.
+      .
+      NOTE: To establish quorum and enable partition tolerance a odd number of
+      ceph-mon units is required.
   monitor-hosts:
     type: string
     default:
     description: |
-        A space separated list of ceph mon hosts to use.  This field is only
-        used to migrate an existing cluster to a juju managed solution
-        and should be left blank otherwise.
+      A space-separated list of ceph mon hosts to use. This field is only used
+      to migrate an existing cluster to a juju-managed solution and should
+      otherwise be left unset.
   expected-osd-count:
     type: int
     default: 0
     description: |
-      Provides an expected number of OSDs for the cluster. This value is used
-      when calculating the number of placement groups for a pool creation.
-      The number of placement groups for new pools are based upon the actual
-      number of OSDs in the cluster or the expected-osd-count, whichever is
-      greater. A value of 0 will cause the charm to only consider the OSDs
-      which are in the cluster.
+      Number of OSDs expected to be deployed in the cluster. This value is used
+      for calculating the number of placement groups on pool creation. The
+      number of placement groups for new pools are based on the actual number
+      of OSDs in the cluster or the expected-osd-count, whichever is greater
+      A value of 0 will cause the charm to only consider the actual number of
+      OSDs in the cluster.
   pgs-per-osd:
     type: int
     default: 100
     description: |
       The number of placement groups per OSD to target. It is important to
       properly size the number of placement groups per OSD as too many
-      or too few placement groups oer OSD may cause resource constraints and
+      or too few placement groups per OSD may cause resource constraints and
       performance degradation. This value comes from the recommendation of
       the Ceph placement group calculator (http://ceph.com/pgcalc/) and
       recommended values are:
@@ -96,33 +131,6 @@ options:
             foreseeable future.
       300 - If the cluster OSD count is expected to increase between 2x and 3x
             in the foreseeable future.
-  source:
-    type: string
-    default:
-    description: |
-      Optional configuration to support use of additional sources such as:
-
-        - ppa:myteam/ppa
-        - cloud:trusty-proposed/kilo
-        - http://my.archive.com/ubuntu main
-
-      The last option should be used in conjunction with the key configuration
-      option.
-
-      Note that a minimum ceph version of 0.48.2 is required for use with this
-      charm which is NOT provided by the packages in the main Ubuntu archive
-      for precise but is provided in the Ubuntu cloud archive.
-  key:
-    type: string
-    default:
-    description: |
-      Key ID to import to the apt keyring to support use with arbitary source
-      configuration from outside of Launchpad archives or PPA's.
-  use-syslog:
-    type: boolean
-    default: False
-    description: |
-      If set to True, supporting services will log to syslog.
   ceph-public-network:
     type: string
     default:
@@ -148,7 +156,7 @@ options:
       If True enables IPv6 support. The charm will expect network interfaces
       to be configured with an IPv6 address. If set to False (default) IPv4
       is expected.
-
+      .
       NOTE: these charms do not currently support IPv6 privacy extension. In
       order for this charm to function correctly, the privacy extension must be
       disabled and a non-temporary address must be configured/available on
@@ -172,27 +180,34 @@ options:
   nagios_context:
     type: string
     default: "juju"
-    type: string
     description: |
       Used by the nrpe-external-master subordinate charm.
-      A string that will be prepended to instance name to set the host name
+      A string that will be prepended to instance name to set the hostname
       in nagios. So for instance the hostname would be something like:
+      .
           juju-myservice-0
+      .
       If you're running multiple environments with the same services in them
       this allows you to differentiate between them.
   nagios_servicegroups:
+    type: string
     default: ""
-    type: string
     description: |
-      A comma-separated list of nagios servicegroups.
-      If left empty, the nagios_context will be used as the servicegroup
+      A comma-separated list of nagios servicegroups. If left empty, the
+      nagios_context will be used as the servicegroup.
   use-direct-io:
-    default: True
     type: boolean
+    default: True
     description: Configure use of direct IO for OSD journals.
-  harden:
+  default-rbd-features:
+    type: int
     default:
-    type: string
     description: |
-        Apply system hardening. Supports a space-delimited list of modules
-        to run. Supported modules currently include os, ssh, apache and mysql.
+      Restrict the rbd features used to the specified level. If set, this will
+      inform clients that they should set the config value `rbd default
+      features`, for example:
+      .
+        rbd default features = 1
+      .
+      This needs to be set to 1 when deploying a cloud with the nova-lxd
+      hypervisor.
