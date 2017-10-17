@@ -66,6 +66,7 @@ class CharmTestCase(unittest.TestCase):
         self.obj = obj
         self.test_config = TestConfig()
         self.test_relation = TestRelation()
+        self.test_leader_settings = TestLeaderSettings()
         self.patch_all()
 
     def patch(self, method):
@@ -83,10 +84,14 @@ class TestConfig(object):
 
     def __init__(self):
         self.config = get_default_config()
+        self.config_changed = {}
+        self.config_changed.setdefault(False)
 
     def get(self, attr=None):
         if not attr:
-            return self.get_all()
+            # Return a copy of self to allow emulation closer to what
+            # hookenv.config() returns (not a dict).
+            return self
         try:
             return self.config[attr]
         except KeyError:
@@ -99,6 +104,15 @@ class TestConfig(object):
         if attr not in self.config:
             raise KeyError
         self.config[attr] = value
+
+    def __getitem__(self, item):
+        return self.config[item]
+
+    def changed(self, attr):
+        return self.config_changed[attr]
+
+    def set_changed(self, attr, changed=True):
+        self.config_changed[attr] = changed
 
 
 class TestRelation(object):
@@ -114,6 +128,22 @@ class TestRelation(object):
             return self.relation_data
         elif attr in self.relation_data:
             return self.relation_data[attr]
+        return None
+
+
+class TestLeaderSettings(object):
+
+    def __init__(self, settings={}):
+        self.settings = settings
+
+    def set(self, settings):
+        self.settings = settings
+
+    def get(self, attr=None):
+        if attr is None:
+            return self.settings
+        elif attr in self.settings:
+            return self.settings[attr]
         return None
 
 

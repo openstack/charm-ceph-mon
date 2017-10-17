@@ -43,7 +43,7 @@ remove-cache-tier:
 create-pool:
   description: Creates a pool
   params:
-    name: 
+    name:
       type: string
       description: The name of the pool
     profile-name:
@@ -115,7 +115,7 @@ create-erasure-profile:
 get-erasure-profile:
   description: Display an erasure code profile.
   params:
-    name: 
+    name:
       type: string
       description: The name of the profile
   required: [name]
@@ -137,7 +137,7 @@ list-pools:
 set-pool-max-bytes:
   description: Set pool quotas for the maximum number of bytes.
   params:
-    max: 
+    max:
       type: integer
       description: The name of the pool
     pool-name:
@@ -170,10 +170,10 @@ pool-statistics:
 snapshot-pool:
   description: Snapshot a pool
   params:
-    pool-name: 
+    pool-name:
       type: string
       description: The name of the pool
-    snapshot-name: 
+    snapshot-name:
       type: string
       description: The name of the snapshot
   required: [snapshot-name, pool-name]
@@ -181,10 +181,10 @@ snapshot-pool:
 remove-pool-snapshot:
   description: Remove a pool snapshot
   params:
-    pool-name: 
+    pool-name:
       type: string
       description: The name of the pool
-    snapshot-name: 
+    snapshot-name:
       type: string
       description: The name of the snapshot
   required: [snapshot-name, pool-name]
@@ -225,4 +225,7 @@ crushmap-update:
       type: string
       description: The json crushmap blob
   required: [map]
+  additionalProperties: false
+show-disk-free:
+  description: Show disk utilization by host and OSD.
   additionalProperties: false

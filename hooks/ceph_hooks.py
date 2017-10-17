@@ -151,6 +151,9 @@ def get_ceph_context():
         cephcontext['public_addr'] = get_public_addr()
         cephcontext['cluster_addr'] = get_cluster_addr()
 
+    if config('default-rbd-features'):
+        cephcontext['rbd_features'] = config('default-rbd-features')
+
     # NOTE(dosaboy): these sections must correspond to what is supported in the
     #                config template.
     sections = ['global', 'mds', 'mon']
@@ -175,6 +178,9 @@ JOURNAL_ZAPPED = '/var/lib/ceph/journal_zapped'
 @hooks.hook('config-changed')
 @harden()
 def config_changed():
+    # Get the cfg object so we can see if the no-bootstrap value has changed
+    # and triggered this hook invocation
+    cfg = config()
     if config('prefer-ipv6'):
         assert_charm_supports_ipv6()
 
@@ -189,24 +195,32 @@ def config_changed():
         update_nrpe_config()
 
     if is_leader():
-        if not leader_get('fsid') or not leader_get('monitor-secret'):
-            if config('fsid'):
-                fsid = config('fsid')
-            else:
-                fsid = "{}".format(uuid.uuid1())
-            if config('monitor-secret'):
-                mon_secret = config('monitor-secret')
-            else:
-                mon_secret = "{}".format(ceph.generate_monitor_secret())
-            status_set('maintenance', 'Creating FSID and Monitor Secret')
-            opts = {
-                'fsid': fsid,
-                'monitor-secret': mon_secret,
-            }
-            log("Settings for the cluster are: {}".format(opts))
-            leader_set(opts)
-    else:
-        if leader_get('fsid') is None or leader_get('monitor-secret') is None:
+        if not config('no-bootstrap'):
+            if not leader_get('fsid') or not leader_get('monitor-secret'):
+                if config('fsid'):
+                    fsid = config('fsid')
+                else:
+                    fsid = "{}".format(uuid.uuid1())
+                if config('monitor-secret'):
+                    mon_secret = config('monitor-secret')
+                else:
+                    mon_secret = "{}".format(ceph.generate_monitor_secret())
+                status_set('maintenance', 'Creating FSID and Monitor Secret')
+                opts = {
+                    'fsid': fsid,
+                    'monitor-secret': mon_secret,
+                }
+                log("Settings for the cluster are: {}".format(opts))
+                leader_set(opts)
+        elif cfg.changed('no-bootstrap') and \
+                is_relation_made('bootstrap-source'):
+            # User changed the no-bootstrap config option, we're the leader,
+            # and the bootstrap-source relation has been made. The charm should
+            # be in a blocked state indicating that the no-bootstrap option
+            # must be set. This block is invoked when the user is trying to
+            # get out of that scenario by enabling no-bootstrap.
+            bootstrap_source_relation_changed()
+    elif leader_get('fsid') is None or leader_get('monitor-secret') is None:
             log('still waiting for leader to setup keys')
             status_set('waiting', 'Waiting for leader to setup keys')
             sys.exit(0)
@@ -229,7 +243,11 @@ def get_mon_hosts():
     addr = get_public_addr()
     hosts.append('{}:6789'.format(format_ipv6_addr(addr) or addr))
 
-    for relid in relation_ids('mon'):
+    rel_ids = relation_ids('mon')
+    if config('no-bootstrap'):
+        rel_ids += relation_ids('bootstrap-source')
+
+    for relid in rel_ids:
         for unit in related_units(relid):
             addr = relation_get('ceph-public-address', unit, relid)
             if addr is not None:
@@ -262,8 +280,70 @@ def mon_relation_joined():
                      relation_settings={'ceph-public-address': public_addr})
 
 
+@hooks.hook('bootstrap-source-relation-changed')
+def bootstrap_source_relation_changed():
+    """Handles relation data changes on the bootstrap-source relation.
+
+    The bootstrap-source relation to share remote bootstrap information with
+    the ceph-mon charm. This relation is used to exchange the remote
+    ceph-public-addresses which are used for the mon's, the fsid, and the
+    monitor-secret.
+    """
+    if not config('no-bootstrap'):
+        status_set('blocked', 'Cannot join the bootstrap-source relation when '
+                              'no-bootstrap is False')
+        return
+
+    if not is_leader():
+        log('Deferring leader-setting updates to the leader unit')
+        return
+
+    curr_fsid = leader_get('fsid')
+    curr_secret = leader_get('monitor-secret')
+    for relid in relation_ids('bootstrap-source'):
+        for unit in related_units(relid=relid):
+            mon_secret = relation_get('monitor-secret', unit, relid)
+            fsid = relation_get('fsid', unit, relid)
+
+            if not (mon_secret and fsid):
+                log('Relation data is not ready as the fsid or the '
+                    'monitor-secret are missing from the relation: '
+                    'mon_secret = %s and fsid = %s ' % (mon_secret, fsid))
+                continue
+
+            if not (curr_fsid or curr_secret):
+                curr_fsid = fsid
+                curr_secret = mon_secret
+            else:
+                # The fsids and secrets need to match or the local monitors
+                # will fail to join the mon cluster. If they don't,
+                # bail because something needs to be investigated.
+                assert curr_fsid == fsid, \
+                    "bootstrap fsid '%s' != current fsid '%s'" % (
+                        fsid, curr_fsid)
+                assert curr_secret == mon_secret, \
+                    "bootstrap secret '%s' != current secret '%s'" % (
+                        mon_secret, curr_secret)
+
+            opts = {
+                'fsid': fsid,
+                'monitor-secret': mon_secret,
+            }
+
+            log('Updating leader settings for fsid and monitor-secret '
+                'from remote relation data: %s' % opts)
+            leader_set(opts)
+
+    # The leader unit needs to bootstrap itself as it won't receive the
+    # leader-settings-changed hook elsewhere.
+    if curr_fsid:
+        mon_relation()
+
+
 @hooks.hook('mon-relation-departed',
-            'mon-relation-changed')
+            'mon-relation-changed',
+            'leader-settings-changed',
+            'bootstrap-source-relation-departed')
 def mon_relation():
     if leader_get('monitor-secret') is None:
         log('still waiting for leader to setup keys')
@@ -317,7 +397,8 @@ def mon_relation():
 
 def notify_osds():
     for relid in relation_ids('osd'):
-        osd_relation(relid)
+        for unit in related_units(relid):
+            osd_relation(relid=relid, unit=unit)
 
 
 def notify_radosgws():
@@ -338,7 +419,7 @@ def notify_client():
 
 @hooks.hook('osd-relation-joined')
 @hooks.hook('osd-relation-changed')
-def osd_relation(relid=None):
+def osd_relation(relid=None, unit=None):
     if ceph.is_quorum():
         log('mon cluster in quorum - providing fsid & keys')
         public_addr = get_public_addr()
@@ -351,7 +432,7 @@ def osd_relation(relid=None):
                                                   caps=ceph.osd_upgrade_caps),
         }
 
-        unit = remote_unit()
+        unit = unit or remote_unit()
         settings = relation_get(rid=relid, unit=unit)
         """Process broker request(s)."""
         if 'broker_req' in settings:
@@ -496,8 +577,8 @@ def client_relation_joined(relid=None):
             data = {'key': ceph.get_named_key(service_name),
                     'auth': config('auth-supported'),
                     'ceph-public-address': public_addr}
-            if config('rbd-features'):
-                data['rbd_features'] = config('rbd-features')
+            if config('default-rbd-features'):
+                data['rbd-features'] = config('default-rbd-features')
             relation_set(relation_id=relid,
                          relation_settings=data)
     else:
@@ -587,6 +668,14 @@ VERSION_PACKAGE = 'ceph-common'
 def assess_status():
     '''Assess status of current unit'''
     application_version_set(get_upstream_version(VERSION_PACKAGE))
+
+    # Check that the no-bootstrap config option is set in conjunction with
+    # having the bootstrap-source relation established
+    if not config('no-bootstrap') and is_relation_made('bootstrap-source'):
+        status_set('blocked', 'Cannot join the bootstrap-source relation when '
+                              'no-bootstrap is False')
+        return
+
     moncount = int(config('monitor-count'))
     units = get_peer_units()
     # not enough peers and mon_count > 1

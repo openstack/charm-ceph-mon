@@ -32,6 +32,7 @@ TO_PATCH = [
     'status_set',
     'config',
     'ceph',
+    'is_relation_made',
     'relation_ids',
     'relation_get',
     'related_units',
@@ -64,6 +65,7 @@ class ServiceStatusTestCase(test_utils.CharmTestCase):
         self.test_config.set('monitor-count', 3)
         self.local_unit.return_value = 'ceph-mon1'
         self.get_upstream_version.return_value = '10.2.2'
+        self.is_relation_made.return_value = False
 
     @mock.patch.object(hooks, 'get_peer_units')
     def test_assess_status_no_peers(self, _peer_units):
@@ -100,18 +102,18 @@ class ServiceStatusTestCase(test_utils.CharmTestCase):
     def test_get_peer_units_no_peers(self):
         self.relation_ids.return_value = ['mon:1']
         self.related_units.return_value = []
-        self.assertEquals({'ceph-mon1': True},
-                          hooks.get_peer_units())
+        self.assertEqual({'ceph-mon1': True},
+                         hooks.get_peer_units())
 
     def test_get_peer_units_peers_incomplete(self):
         self.relation_ids.return_value = ['mon:1']
         self.related_units.return_value = ['ceph-mon2',
                                            'ceph-mon3']
         self.relation_get.return_value = None
-        self.assertEquals({'ceph-mon1': True,
-                           'ceph-mon2': False,
-                           'ceph-mon3': False},
-                          hooks.get_peer_units())
+        self.assertEqual({'ceph-mon1': True,
+                          'ceph-mon2': False,
+                          'ceph-mon3': False},
+                         hooks.get_peer_units())
 
     def test_get_peer_units_peers_complete(self):
         self.relation_ids.return_value = ['mon:1']
@@ -119,7 +121,13 @@ class ServiceStatusTestCase(test_utils.CharmTestCase):
                                            'ceph-mon3']
         self.relation_get.side_effect = ['ceph-mon2',
                                          'ceph-mon3']
-        self.assertEquals({'ceph-mon1': True,
-                           'ceph-mon2': True,
-                           'ceph-mon3': True},
-                          hooks.get_peer_units())
+        self.assertEqual({'ceph-mon1': True,
+                          'ceph-mon2': True,
+                          'ceph-mon3': True},
+                         hooks.get_peer_units())
+
+    def test_no_bootstrap_not_set(self):
+        self.is_relation_made.return_value = True
+        hooks.assess_status()
+        self.status_set.assert_called_with('blocked', mock.ANY)
+        self.application_version_set.assert_called_with('10.2.2')

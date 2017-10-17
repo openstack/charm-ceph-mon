@@ -30,6 +30,7 @@ from datetime import datetime
 
 from charmhelpers.core import hookenv
 from charmhelpers.core import templating
+from charmhelpers.core.decorators import retry_on_exception
 from charmhelpers.core.host import (
     chownr,
     cmp_pkgrevno,
@@ -51,6 +52,8 @@ from charmhelpers.core.hookenv import (
     DEBUG,
     ERROR,
     WARNING,
+    storage_get,
+    storage_list,
 )
 from charmhelpers.fetch import (
     apt_cache,
@@ -1285,38 +1288,51 @@ def bootstrap_monitor_cluster(secret):
         mkdir(path, owner=ceph_user(), group=ceph_user())
         # end changes for Ceph >= 0.61.3
         try:
-            subprocess.check_call(['ceph-authtool', keyring,
-                                   '--create-keyring', '--name=mon.',
-                                   '--add-key={}'.format(secret),
-                                   '--cap', 'mon', 'allow *'])
+            add_keyring_to_ceph(keyring,
+                                secret,
+                                hostname,
+                                path,
+                                done,
+                                init_marker)
 
-            subprocess.check_call(['ceph-mon', '--mkfs',
-                                   '-i', hostname,
-                                   '--keyring', keyring])
-            chownr(path, ceph_user(), ceph_user())
-            with open(done, 'w'):
-                pass
-            with open(init_marker, 'w'):
-                pass
-
-            if systemd():
-                subprocess.check_call(['systemctl', 'enable', 'ceph-mon'])
-                service_restart('ceph-mon')
-            else:
-                service_restart('ceph-mon-all')
-
-            if cmp_pkgrevno('ceph', '12.0.0') >= 0:
-                # NOTE(jamespage): Later ceph releases require explicit
-                #                  call to ceph-create-keys to setup the
-                #                  admin keys for the cluster; this command
-                #                  will wait for quorum in the cluster before
-                #                  returning.
-                cmd = ['ceph-create-keys', '--id', hostname]
-                subprocess.check_call(cmd)
         except:
             raise
         finally:
             os.unlink(keyring)
+
+
+@retry_on_exception(3, base_delay=5)
+def add_keyring_to_ceph(keyring, secret, hostname, path, done, init_marker):
+    subprocess.check_call(['ceph-authtool', keyring,
+                           '--create-keyring', '--name=mon.',
+                           '--add-key={}'.format(secret),
+                           '--cap', 'mon', 'allow *'])
+    subprocess.check_call(['ceph-mon', '--mkfs',
+                           '-i', hostname,
+                           '--keyring', keyring])
+    chownr(path, ceph_user(), ceph_user())
+    with open(done, 'w'):
+        pass
+    with open(init_marker, 'w'):
+        pass
+
+    if systemd():
+        subprocess.check_call(['systemctl', 'enable', 'ceph-mon'])
+        service_restart('ceph-mon')
+    else:
+        service_restart('ceph-mon-all')
+
+    if cmp_pkgrevno('ceph', '12.0.0') >= 0:
+        # NOTE(jamespage): Later ceph releases require explicit
+        #                  call to ceph-create-keys to setup the
+        #                  admin keys for the cluster; this command
+        #                  will wait for quorum in the cluster before
+        #                  returning.
+        cmd = ['ceph-create-keys', '--id', hostname]
+        subprocess.check_call(cmd)
+    osstat = os.stat("/etc/ceph/ceph.client.admin.keyring")
+    if not osstat.st_size:
+        raise Exception
 
 
 def update_monfs():
@@ -1353,10 +1369,36 @@ def get_partitions(dev):
         return []
 
 
-def find_least_used_journal(journal_devices):
-    usages = map(lambda a: (len(get_partitions(a)), a), journal_devices)
+def find_least_used_utility_device(utility_devices):
+    """
+    Find a utility device which has the smallest number of partitions
+    among other devices in the supplied list.
+
+    :utility_devices: A list of devices to be used for filestore journal
+    or bluestore wal or db.
+    :return: string device name
+    """
+
+    usages = map(lambda a: (len(get_partitions(a)), a), utility_devices)
     least = min(usages, key=lambda t: t[0])
     return least[1]
+
+
+def get_devices(name):
+    """ Merge config and juju storage based devices
+
+    :name: THe name of the device type, eg: wal, osd, journal
+    :returns: Set(device names), which are strings
+    """
+    if config(name):
+        devices = [l.strip() for l in config(name).split(' ')]
+    else:
+        devices = []
+    storage_ids = storage_list(name)
+    devices.extend((storage_get('location', s) for s in storage_ids))
+    devices = filter(os.path.exists, devices)
+
+    return set(devices)
 
 
 def osdize(dev, osd_format, osd_journal, reformat_osd=False,
@@ -1366,7 +1408,7 @@ def osdize(dev, osd_format, osd_journal, reformat_osd=False,
                    reformat_osd, ignore_errors, encrypt,
                    bluestore)
     else:
-        osdize_dir(dev, encrypt)
+        osdize_dir(dev, encrypt, bluestore)
 
 
 def osdize_dev(dev, osd_format, osd_journal, reformat_osd=False,
@@ -1395,7 +1437,7 @@ def osdize_dev(dev, osd_format, osd_journal, reformat_osd=False,
         if encrypt:
             cmd.append('--dmcrypt')
     if cmp_pkgrevno('ceph', '0.48.3') >= 0:
-        if osd_format:
+        if osd_format and not bluestore:
             cmd.append('--fs-type')
             cmd.append(osd_format)
 
@@ -1405,13 +1447,23 @@ def osdize_dev(dev, osd_format, osd_journal, reformat_osd=False,
         # NOTE(jamespage): enable experimental bluestore support
         if cmp_pkgrevno('ceph', '10.2.0') >= 0 and bluestore:
             cmd.append('--bluestore')
+            wal = get_devices('bluestore-wal')
+            if wal:
+                cmd.append('--block.wal')
+                least_used_wal = find_least_used_utility_device(wal)
+                cmd.append(least_used_wal)
+            db = get_devices('bluestore-db')
+            if db:
+                cmd.append('--block.db')
+                least_used_db = find_least_used_utility_device(db)
+                cmd.append(least_used_db)
         elif cmp_pkgrevno('ceph', '12.1.0') >= 0 and not bluestore:
             cmd.append('--filestore')
 
         cmd.append(dev)
 
         if osd_journal:
-            least_used = find_least_used_journal(osd_journal)
+            least_used = find_least_used_utility_device(osd_journal)
             cmd.append(least_used)
     else:
         # Just provide the device - no other options
@@ -1431,7 +1483,7 @@ def osdize_dev(dev, osd_format, osd_journal, reformat_osd=False,
             raise
 
 
-def osdize_dir(path, encrypt=False):
+def osdize_dir(path, encrypt=False, bluestore=False):
     """Ask ceph-disk to prepare a directory to become an osd.
 
     :param path: str. The directory to osdize
@@ -1459,6 +1511,12 @@ def osdize_dir(path, encrypt=False):
     if cmp_pkgrevno('ceph', '0.60') >= 0:
         if encrypt:
             cmd.append('--dmcrypt')
+
+    # NOTE(icey): enable experimental bluestore support
+    if cmp_pkgrevno('ceph', '10.2.0') >= 0 and bluestore:
+        cmd.append('--bluestore')
+    elif cmp_pkgrevno('ceph', '12.1.0') >= 0 and not bluestore:
+        cmd.append('--filestore')
     log("osdize dir cmd: {}".format(cmd))
     subprocess.check_call(cmd)
 

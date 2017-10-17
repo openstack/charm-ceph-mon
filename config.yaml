@@ -211,3 +211,12 @@ options:
       .
       This needs to be set to 1 when deploying a cloud with the nova-lxd
       hypervisor.
+  no-bootstrap:
+    type: boolean
+    default: False
+    description: |
+      Causes the charm to not do any of the initial bootstrapping of the
+      Ceph monitor cluster. This is only intended to be used when migrating
+      from the ceph all-in-one charm to a ceph-mon / ceph-osd deployment.
+      Refer to the Charm Deployment guide at https://docs.openstack.org/charm-deployment-guide/latest/
+      for more information.

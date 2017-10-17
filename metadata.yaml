@@ -11,6 +11,7 @@ tags:
   - misc
 series:
   - xenial
+  - artful
   - zesty
   - trusty
 peers:
@@ -36,3 +37,6 @@ provides:
   nrpe-external-master:
     interface: nrpe-external-master
     scope: container
+requires:
+  bootstrap-source:
+    interface: ceph-bootstrap
