@@ -152,17 +152,19 @@ def check_ceph_status(args):
         # Check the thresholds and return CRITICAL if exceeded,
         # otherwise there's something not accounted for and we want to know
         # about it with a WARN alert.
-        degraded_ratio = status_data['pgmap'].get('degraded_ratio', 0.0)
+        degraded_ratio = float(status_data['pgmap'].get('degraded_ratio', 0.0))
         if degraded_ratio > args.degraded_thresh:
             status_critical = True
-        status_msg.append("Degraded ratio: {}".format(degraded_ratio))
-        misplaced_ratio = status_data['pgmap'].get('misplaced_ratio', 0.0)
+        if degraded_ratio > 0:
+            status_msg.append("Degraded ratio: {}".format(degraded_ratio))
+        misplaced_ratio = float(status_data['pgmap'].get('misplaced_ratio', 0.0))
         if misplaced_ratio > args.misplaced_thresh:
             status_critical = True
-        status_msg.append("Misplaced ratio: {}".format(misplaced_ratio))
-        recovering = status_data['pgmap'].get('recovering_objects_per_sec',
-                                              0.0)
-        if recovering < args.recovery_rate:
+        if misplaced_ratio > 0:
+            status_msg.append("Misplaced ratio: {}".format(misplaced_ratio))
+        recovering = int(status_data['pgmap'].get('recovering_objects_per_sec', 0))
+        # We only check recovering rate when the cluster has degraded or misplaced PGs
+        if (degraded_ratio > 0 or misplaced_ratio > 0) and recovering < args.recovery_rate:
             status_critical = True
             status_msg.append("Recovering objects/sec {}".format(recovering))
         if status_critical:
@@ -170,7 +172,7 @@ def check_ceph_status(args):
                   overall_status,
                   ", ".join(status_msg))
             raise CriticalError(msg)
-        if  overall_status == 'HEALTH_WARN':
+        if overall_status == 'HEALTH_WARN' and status_msg:
             msg = "WARNING: {}".format(", ".join(status_msg))
             raise WarnError(msg)
     message = "All OK"
@@ -218,7 +220,7 @@ def main(args):
         exitcode = 'critical'
     except WarnError as msg:
         print(msg)
-        exitcode = 'critical'
+        exitcode = 'warning'
     except:
         print("%s raised unknown exception '%s'" % ('check_ceph_status',
                                                     sys.exc_info()[0]))
