@@ -107,6 +107,9 @@ from utils import (
 from charmhelpers.contrib.charmsupport import nrpe
 from charmhelpers.contrib.hardening.harden import harden
 
+os.sys.path.insert(1, os.path.join(sys.path[0], "../files/nagios"))
+import check_ceph_status
+
 hooks = Hooks()
 
 NAGIOS_PLUGINS = '/usr/local/lib/nagios/plugins'
@@ -637,6 +640,8 @@ def notify_client():
             service_name = get_client_application_name(relid, unit)
             if service_name:
                 data.update({'key': ceph.get_named_key(service_name)})
+                if "prometheus-ceph-exporter" in service_name:
+                    data.update({"version": ceph.resolve_ceph_version(hookenv.config("source") or "distro")})
                 break
 
         if not service_name:
@@ -1073,6 +1078,8 @@ def client_relation(relid=None, unit=None):
             return
         data = _get_ceph_info_from_configs()
         data.update({'key': ceph.get_named_key(service_name)})
+        if "prometheus-ceph-exporter" in service_name:
+            data.update({"version": ceph.resolve_ceph_version(hookenv.config("source") or "distro")})
         _handle_client_relation(relid, unit, data)
 
 
