@@ -68,6 +68,27 @@ class TestCephOps(unittest.TestCase):
 
     @patch('charmhelpers.contrib.storage.linux.ceph.cmp_pkgrevno')
     @patch.object(broker, 'pool_exists')
+    @patch.object(broker.ReplicatedPool, 'create')
+    @patch.object(broker, 'log', lambda *args, **kwargs: None)
+    def test_process_requests_create_replicated_pool(self,
+                                                     mock_replicated_pool,
+                                                     mock_pool_exists,
+                                                     mock_cmp_pkgrevno):
+        mock_pool_exists.return_value = False
+        mock_cmp_pkgrevno.return_value = 1
+        reqs = json.dumps({'api-version': 1,
+                           'ops': [{
+                               'op': 'create-pool',
+                               'name': 'foo',
+                               'replicas': 3
+                           }]})
+        rc = broker.process_requests(reqs)
+        mock_pool_exists.assert_called_with(service='admin', name='foo')
+        mock_replicated_pool.assert_called_with()
+        self.assertEqual(json.loads(rc), {'exit-code': 0})
+
+    @patch('charmhelpers.contrib.storage.linux.ceph.cmp_pkgrevno')
+    @patch.object(broker, 'pool_exists')
     @patch.object(broker.ErasurePool, 'create')
     @patch.object(broker, 'erasure_profile_exists')
     @patch.object(broker, 'log', lambda *args, **kwargs: None)

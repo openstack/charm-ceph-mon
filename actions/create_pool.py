@@ -30,10 +30,12 @@ def create_pool():
     try:
         if pool_type == "replicated":
             replicas = action_get("replicas")
+            crush_profile_name = action_get("profile-name")
             replicated_pool = ReplicatedPool(name=pool_name,
                                              service='admin',
                                              replicas=replicas,
                                              app_name=app_name,
+                                             profile_name=crush_profile_name,
                                              percent_data=float(percent_data),
                                              )
             replicated_pool.create()
