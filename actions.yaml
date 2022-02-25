@@ -405,3 +405,5 @@ get-quorum-status:
         - text
         - json
       description: Specify output format (text|json).
+pg-repair:
+  description: "Repair inconsistent placement groups, if safe to do so."
