@@ -1134,7 +1134,8 @@ def get_mds_bootstrap_key():
 
 _default_caps = collections.OrderedDict([
     ('mon', ['allow r',
-             'allow command "osd blacklist"']),
+             'allow command "osd blacklist"',
+             'allow command "osd blocklist"']),
     ('osd', ['allow rwx']),
 ])
 
