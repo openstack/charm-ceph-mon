@@ -1167,7 +1167,10 @@ osd_upgrade_caps = collections.OrderedDict([
 ])
 
 rbd_mirror_caps = collections.OrderedDict([
-    ('mon', ['profile rbd; allow r']),
+    ('mon', ['allow profile rbd-mirror-peer',
+             'allow command "service dump"',
+             'allow command "service status"'
+             ]),
     ('osd', ['profile rbd']),
     ('mgr', ['allow r']),
 ])
