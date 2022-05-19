@@ -190,8 +190,7 @@ applications:
     channel: wallaby/edge
 
   prometheus2:
-# Pin prometheus2 charm version Bug #1891942
-    charm: cs:prometheus2-18
+    charm: ch:prometheus2
     num_units: 1
     to:
       - '16'
