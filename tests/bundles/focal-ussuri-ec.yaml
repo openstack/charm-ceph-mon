@@ -1,3 +1,5 @@
+local_overlay_enabled: False
+
 variables:
   openstack-origin: &openstack-origin distro
 
@@ -34,18 +36,23 @@ machines:
 applications:
 
   keystone-mysql-router:
-    charm: cs:~openstack-charmers/mysql-router
+    charm: ch:mysql-router
+    channel: 8.0/edge
   glance-mysql-router:
-    charm: cs:~openstack-charmers/mysql-router
+    charm: ch:mysql-router
+    channel: 8.0/edge
   cinder-mysql-router:
-    charm: cs:~openstack-charmers/mysql-router
+    charm: ch:mysql-router
+    channel: 8.0/edge
   nova-cloud-controller-mysql-router:
-    charm: cs:~openstack-charmers/mysql-router
+    charm: ch:mysql-router
+    channel: 8.0/edge
   placement-mysql-router:
-    charm: cs:~openstack-charmers/mysql-router
+    charm: ch:mysql-router
+    channel: 8.0/edge
 
   mysql-innodb-cluster:
-    charm: cs:~openstack-charmers/mysql-innodb-cluster
+    charm: ch:mysql-innodb-cluster
     num_units: 3
     options:
       source: *openstack-origin
@@ -53,9 +60,10 @@ applications:
       - '0'
       - '1'
       - '2'
+    channel: 8.0/edge
 
   ceph-osd:
-    charm: cs:~openstack-charmers/ceph-osd
+    charm: ch:ceph-osd
     num_units: 6
     storage:
       osd-devices: '10G'
@@ -68,9 +76,10 @@ applications:
       - '17'
       - '18'
       - '19'
+    channel: octopus/edge
 
   ceph-mon:
-    charm: cs:~openstack-charmers/ceph-mon
+    charm: ../../ceph-mon.charm
     num_units: 3
     options:
       source: *openstack-origin
@@ -81,8 +90,7 @@ applications:
       - '8'
 
   ceph-radosgw:
-    charm: cs:~openstack-charmers/ceph-radosgw
-    num_units: 1
+    charm: ch:ceph-radosgw
     num_units: 1
     options:
       source: *openstack-origin
@@ -91,26 +99,29 @@ applications:
       ec-profile-m: 2
     to:
       - '20'
+    channel: octopus/edge
 
   rabbitmq-server:
-    charm: cs:~openstack-charmers/rabbitmq-server
+    charm: ch:rabbitmq-server
     num_units: 1
     options:
       source: *openstack-origin
     to:
       - '9'
+    channel: 3.8/edge
 
   keystone:
     expose: True
-    charm: cs:~openstack-charmers/keystone
+    charm: ch:keystone
     num_units: 1
     options:
       openstack-origin: *openstack-origin
     to:
       - '10'
+    channel: wallaby/edge
 
   nova-compute:
-    charm: cs:~openstack-charmers/nova-compute
+    charm: ch:nova-compute
     num_units: 1
     options:
       openstack-origin: *openstack-origin
@@ -121,10 +132,11 @@ applications:
       libvirt-image-backend: rbd
     to:
       - '11'
+    channel: wallaby/edge
 
   glance:
     expose: True
-    charm: cs:~openstack-charmers/glance
+    charm: ch:glance
     num_units: 1
     options:
       openstack-origin: *openstack-origin
@@ -134,10 +146,11 @@ applications:
       ec-profile-plugin: jerasure
     to:
       - '12'
+    channel: wallaby/edge
 
   cinder:
     expose: True
-    charm: cs:~openstack-charmers/cinder
+    charm: ch:cinder
     num_units: 1
     options:
       block-device: 'None'
@@ -145,36 +158,39 @@ applications:
       openstack-origin: *openstack-origin
     to:
       - '13'
+    channel: wallaby/edge
 
   cinder-ceph:
-    charm: cs:~openstack-charmers/cinder-ceph
+    charm: ch:cinder-ceph
     options:
       pool-type: erasure-coded
       ec-profile-k: 4
       ec-profile-m: 2
       ec-profile-plugin: lrc
       ec-profile-locality: 3
+    channel: wallaby/edge
 
   nova-cloud-controller:
     expose: True
-    charm: cs:~openstack-charmers/nova-cloud-controller
+    charm: ch:nova-cloud-controller
     num_units: 1
     options:
       openstack-origin: *openstack-origin
     to:
       - '14'
+    channel: wallaby/edge
 
   placement:
-    charm: cs:~openstack-charmers/placement
+    charm: ch:placement
     num_units: 1
     options:
       openstack-origin: *openstack-origin
     to:
       - '15'
+    channel: wallaby/edge
 
   prometheus2:
-# Pin prometheus2 charm version Bug #1891942
-    charm: cs:prometheus2-18
+    charm: ch:prometheus2
     num_units: 1
     to:
       - '16'

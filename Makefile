@@ -25,7 +25,7 @@ ch-sync: bin/charm_helpers_sync.py
 	$(PYTHON) bin/charm_helpers_sync.py -c charm-helpers-hooks.yaml
 
 ceph-sync:  bin/git_sync.py
-	$(PYTHON) bin/git_sync.py -d lib -s https://github.com/openstack/charms.ceph.git
+	$(PYTHON) bin/git_sync.py --branch stable/octopus -d lib -s https://opendev.org/openstack/charms.ceph.git
 
 sync: ch-sync
 

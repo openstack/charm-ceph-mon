@@ -10,7 +10,7 @@ options:
       If set to True, supporting services will log to syslog.
   source:
     type: string
-    default:
+    default: cloud:focal-ussuri
     description: |
       Optional configuration to support use of additional sources such as:
       .

@@ -2,4 +2,4 @@
 host=review.opendev.org
 port=29418
 project=openstack/charm-ceph-mon.git
-defaultbranch=stable/21.10
+defaultbranch=stable/octopus

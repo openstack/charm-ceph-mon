@@ -1,29 +1,18 @@
 - project:
     templates:
-      - charm-unit-jobs
-      - charm-functional-jobs
+      - charm-unit-jobs-py38
     check:
       jobs:
-      - focal-ussuri-ec-ceph-mon
-      - bionic-train-with-fsid
-      # Disabling victoria due to https://github.com/openstack-charmers/zaza-openstack-tests/issues/647
-      - focal-victoria:
-          voting: false
-      - focal-xena:
-          voting: false
-      - impish-xena:
-          voting: false
+        - focal-ussuri
+        - focal-ussuri-ec-ceph-mon
+    vars:
+      needs_charm_build: true
+      charm_build_name: ceph-mon
+      build_type: charmcraft
 
 - job:
     name: focal-ussuri-ec-ceph-mon
     parent: func-target
-    dependencies: &smoke-jobs
-      - bionic-ussuri
+    dependencies: []
     vars:
       tox_extra_args: focal-ussuri-ec
-- job:
-    name: bionic-train-with-fsid
-    parent: func-target
-    dependencies: *smoke-jobs
-    vars:
-      tox_extra_args: bionic-train-with-fsid
