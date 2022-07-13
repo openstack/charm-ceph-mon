@@ -209,7 +209,7 @@ list-erasure-profiles:
   description: "List the names of all erasure code profiles"
   additionalProperties: false
 list-inconsistent-objs:
-  description: "List the names of the inconsistent objecs per PG"
+  description: "List the names of the inconsistent objects per PG"
   params:
     format:
       type: string
