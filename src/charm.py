@@ -51,7 +51,20 @@ class CephMonCharm(ops_openstack.core.OSBaseCharm):
 
     # TODO: Figure out how to do hardening in an operator-framework
     # world
+
+    def _initialise_config(self):
+        # The following two lines are a horrible hack to deal with the
+        # lifecycle of a charm changing compared to the classic charm.
+        # The previous (classic) version of the charm initialised a
+        # Config object in the install hook and let it go out of scope.
+        # As a result of this, the config_changed processing attempts
+        # to upgrade Ceph from distro to the configured release when it
+        # runs during the install or upgrade-charm hooks.
+        c = hooks.config()
+        c.save()
+
     def on_install(self, event):
+        self._initialise_config()
         self.install_pkgs()
         rm_packages = ceph.determine_packages_to_remove()
         if rm_packages:
@@ -72,6 +85,7 @@ class CephMonCharm(ops_openstack.core.OSBaseCharm):
         hooks.pre_series_upgrade()
 
     def on_upgrade(self, event):
+        self._initialise_config()
         self.metrics_endpoint.update_alert_rules()
         hooks.upgrade_charm()
         self.on.notify_clients.emit()
