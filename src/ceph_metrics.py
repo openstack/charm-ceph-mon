@@ -68,6 +68,7 @@ class CephMetricsEndpointProvider(prometheus_scrape.MetricsEndpointProvider):
             mgr_config_set_rbd_stats_pools()
             ceph_utils.mgr_enable_module("prometheus")
             logger.debug("module_enabled")
+            self.update_alert_rules()
             super()._on_relation_changed(event)
 
     def _on_relation_departed(self, event):
