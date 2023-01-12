@@ -897,11 +897,29 @@ def osd_relation(relid=None, unit=None):
         notify_rbd_mirrors()
         send_osd_settings()
 
-        for relid in relation_ids('dashboard'):
-            dashboard_relation(relid)
+        for dashboard_relid in relation_ids('dashboard'):
+            dashboard_relation(dashboard_relid)
 
         if ready_for_service():
             update_host_osd_count_report()
+
+        if is_leader():
+            osd_host = relation_get(rid=relid, unit=unit, attribute='osd-host')
+            osd = f"osd/host:{osd_host}"
+            osd_memory_target = relation_get(
+                rid=relid, unit=unit, attribute='osd-memory-target'
+            )
+            if osd_host:
+                if osd_memory_target:
+                    ceph.ceph_config_set(
+                        "osd_memory_target",
+                        osd_memory_target,
+                        osd,
+                    )
+                else:
+                    subprocess.check_call(
+                        ["ceph", "config", "rm", osd, "osd_memory_target"]
+                    )
 
     else:
         log('mon cluster not in quorum - deferring fsid provision')
