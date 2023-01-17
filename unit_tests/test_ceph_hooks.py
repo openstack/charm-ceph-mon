@@ -206,8 +206,8 @@ class CephHooksTestCase(test_utils.CharmTestCase):
                             write_file=DEFAULT,
                             nrpe=DEFAULT) as mocks:
             ceph_hooks.update_nrpe_config()
-        mocks["apt_install"].assert_called_once_with(
-            ["python-dbus", "lockfile-progs"])
+        mocks["apt_install"].assert_called_with(
+            "lockfile-progs", fatal=True)
 
     @patch.object(ceph_hooks, 'notify_prometheus')
     @patch.object(ceph_hooks, 'notify_rbd_mirrors')
@@ -239,7 +239,7 @@ class CephHooksTestCase(test_utils.CharmTestCase):
             mocks["is_relation_made"].return_value = True
             ceph_hooks.upgrade_charm()
         mocks["apt_install"].assert_called_with(
-            ["python-dbus", "lockfile-progs"])
+            "lockfile-progs", fatal=True)
         mock_notify_radosgws.assert_called_once_with()
         mock_ceph.update_monfs.assert_called_once_with()
         mock_notify_prometheus.assert_called_once_with()
