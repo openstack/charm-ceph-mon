@@ -857,7 +857,7 @@ class BootstrapSourceTestCase(test_utils.CharmTestCase):
         for unit in ('ceph/0', 'ceph/1', 'ceph/2'):
             expected_calls.append(call('monitor-secret', unit, relid))
             expected_calls.append(call('fsid', unit, relid))
-        self.relation_get.has_calls(expected_calls)
+        self.relation_get.assert_has_calls(expected_calls)
         self.assertEqual(self.leader_set.call_count, 0)
         self.assertEqual(self.mon_relation.call_count, 0)
 
