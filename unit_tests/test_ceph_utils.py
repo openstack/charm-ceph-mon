@@ -241,9 +241,10 @@ class CephUtilsTestCase(test_utils.CharmTestCase):
         release = 'luminous'
         utils._set_require_osd_release(release)
         expected_call = mock.call(
-            ['ceph', 'osd', 'require-osd-release', release]
+            ['ceph', 'osd', 'require-osd-release', release,
+             '--yes-i-really-mean-it']
         )
-        check_call.has_calls(expected_call)
+        check_call.assert_called_with(expected_call.args[0])
 
     @mock.patch.object(utils.subprocess, 'check_call')
     @mock.patch.object(utils, 'log')
@@ -253,13 +254,14 @@ class CephUtilsTestCase(test_utils.CharmTestCase):
             0, mock.mock.MagicMock()
         )
         expected_call = mock.call(
-            ['ceph', 'osd', 'require-osd-release', release]
+            ['ceph', 'osd', 'require-osd-release', release,
+             '--yes-i-really-mean-it']
         )
 
         with self.assertRaises(utils.OsdPostUpgradeError):
             utils._set_require_osd_release(release)
 
-        check_call.has_calls(expected_call)
+        check_call.assert_called_with(expected_call.args[0])
         log.assert_called_once()
 
     @mock.patch.object(utils, 'relation_ids')
