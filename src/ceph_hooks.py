@@ -573,7 +573,8 @@ def attempt_mon_cluster_bootstrap():
                 "chooseleaf firstn 0 type rack/' > "
                 "/tmp/crush.decompiled",
                 "crushtool -c /tmp/crush.decompiled -o /tmp/crush.map",
-                "crushtool -i /tmp/crush.map --test",
+                "crushtool -i /tmp/crush.map --test "
+                "--num-rep 3 --show-statistics",
                 "ceph osd setcrushmap -i /tmp/crush.map"
             ]
             for cmd in cmds:
