@@ -23,11 +23,6 @@ from charmhelpers.contrib.storage.linux.ceph import pool_set, \
     set_pool_quota, snapshot_pool, remove_pool_snapshot
 
 
-class CephReportError(Exception):
-    """This indicates a critical error."""
-    pass
-
-
 def list_pools():
     """Return a list of all Ceph pools."""
     try:
@@ -35,52 +30,6 @@ def list_pools():
         return pool_list
     except CalledProcessError as e:
         action_fail(str(e))
-
-
-def get_versions_report():
-    """
-    Return a mapping of hosts and their related ceph daemon versions.
-
-    On error, raise a CephReportError.
-    """
-    report = dict()
-    try:
-        output = check_output(['ceph', 'node', 'ls']).decode('UTF-8')
-    except CalledProcessError as e:
-        action_fail(str(e))
-        raise(CephReportError("Getting nodes list fail"))
-    nodes_list = json.loads(output)
-
-    # osd versions
-    for osd_host, osds in nodes_list['osd'].items():
-        report.setdefault(osd_host, [])
-        for osd in osds:
-            try:
-                output = check_output(['ceph', 'tell',
-                                       "osd.{}".format(osd),
-                                       'version']).decode('UTF-8')
-            except CalledProcessError:
-                raise(
-                    CephReportError("Getting osd.{} version fail".format(osd))
-                )
-            report[osd_host].append(json.loads(output)['version'])
-
-    # mon versions
-    for mon_host, mons in nodes_list['mon'].items():
-        report.setdefault(mon_host, [])
-        for mon in mons:
-            try:
-                output = check_output(['ceph', 'tell',
-                                       "mon.{}".format(mon),
-                                       'version']).decode('UTF-8')
-            except CalledProcessError as e:
-                action_fail(str(e))
-                raise(
-                    CephReportError("Getting mon.{} version fail".format(mon))
-                )
-            report[mon_host].append(json.loads(output)['version'])
-
-    return json.dumps(report, indent=4)
 
 
 def pool_get():

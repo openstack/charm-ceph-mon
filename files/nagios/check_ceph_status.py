@@ -86,32 +86,6 @@ def get_ceph_version():
     return out_version
 
 
-def get_daemons_versions():
-    """
-    Uses CLI to get the ceph versions
-
-    :returns: set containing tuple of integers,
-              all the differents versions encountered in the cluster
-    :raises: UnknownError
-    """
-    try:
-        tree = subprocess.check_output(['ceph',
-                                        'versions']).decode('UTF-8')
-    except subprocess.CalledProcessError as e:
-        raise UnknownError(
-            "UNKNOWN: could not determine OSDs versions, error: {}".format(e))
-    ceph_versions = json.loads(tree)
-    # ceph version command return a json output
-    # containing version of all daemons connected to the cluster
-    # here we parse the overall field,
-    # to get a set of all versions seen by the cluster
-    daemons_versions = set(map(
-                           lambda x: tuple(int(i) for i in
-                                           x.split(' ')[2].split('.')),
-                           ceph_versions['overall'].keys()))
-    return daemons_versions
-
-
 def get_status_and_messages(status_data):
     """
     Used to get general status of a Ceph cluster as well as a list of
@@ -161,50 +135,6 @@ def check_ceph_status(args):
     """
 
     status_critical = False
-    # if it is just --check_daemons_versions_consistency,
-    # deal with it and ignore overall health
-    if args.check_daemons_versions_consistency:
-        daemons_versions = get_daemons_versions()
-        # we check that the osds have same versions
-        num_of_versions = len(daemons_versions)
-        if num_of_versions == 1:
-            message_ok = "OK: All versions alligned"
-            return message_ok
-        else:
-            # version diverged
-            # we check if major release are the same
-            # by parsing version number in the daemon_version set
-            # and keeping major version number or coverting the minor
-            # version number if major version is 0
-            num_of_releases = set(map(lambda x: x[0], daemons_versions))
-            if len(num_of_releases) == 1:
-                msg = 'WARNING: Components minor versions diverged.'
-                'Run get-versions-report to know more'
-                raise WarnError(msg)
-            else:
-                # Releases diverged
-                major, _minor, _patch = get_ceph_version()
-                release_versions_diff = list(map(lambda x: major - x,
-                                                 num_of_releases))
-                if max(release_versions_diff) >= 2:
-                    msg = "CRITICAL: A component is " \
-                          "{} version behind osd leader" \
-                          ". Run get-versions-report to know more".format(
-                              max(release_versions_diff))
-                    raise CriticalError(msg)
-                if min(release_versions_diff) <= -1:
-                    msg = "CRITICAL: A component is " \
-                          "{} version ahead osd leader" \
-                          ". Run get-versions-report to know more".format(
-                              abs(min(release_versions_diff)))
-                    raise CriticalError(msg)
-                if max(release_versions_diff) == 1:
-                    msg = "WARNING: A component is " \
-                          "{} version behind osd leader" \
-                          ". Run get-versions-report to know more".format(
-                              max(release_versions_diff))
-                    raise WarnError(msg)
-
     if args.status_file:
         check_file_freshness(args.status_file)
         with open(args.status_file) as f:
@@ -357,11 +287,6 @@ def parse_args(args):
                         dest='check_num_osds', default=False,
                         action='store_true',
                         help="Check whether all OSDs are up and in")
-    parser.add_argument('--check_daemons_versions_consistency',
-                        dest='check_daemons_versions_consistency',
-                        default=False,
-                        action='store_true',
-                        help="Check all OSDs versions")
 
     return parser.parse_args(args)
 

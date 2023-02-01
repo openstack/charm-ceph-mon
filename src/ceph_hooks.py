@@ -1175,14 +1175,6 @@ def update_nrpe_config():
             description='Check whether all OSDs are up and in',
             check_cmd=check_cmd
         )
-    if is_leader():
-        check_cmd = 'check_ceph_status.py -f {}' \
-                    ' --check_daemons_versions'.format(STATUS_FILE)
-        nrpe_setup.add_check(
-            shortname='ceph_daemons_versions',
-            description='Check wheter all ceph daemons versions are alligned',
-            check_cmd=check_cmd
-        )
     nrpe_setup.write()
 
 

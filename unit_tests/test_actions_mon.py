@@ -13,7 +13,6 @@
 import json
 import sys
 import unittest.mock as mock
-from subprocess import CalledProcessError
 
 from test_utils import CharmTestCase
 
@@ -48,45 +47,6 @@ class OpsTestCase(CharmTestCase):
                       "action_get",
                       "action_fail",
                       "open"])
-
-    def test_get_version_report_ok(self):
-        def _call_rslt():
-            with open('unit_tests/ceph_ls_node.json') as f:
-                tree = f.read()
-            yield tree.encode('UTF-8')
-            while True:
-                yield ('{'
-                       '    "version": "16.2.7",'
-                       '    "release": "pacific",'
-                       '    "release_type": "stable"'
-                       '}').encode('UTF-8')
-        self.check_output.side_effect = _call_rslt()
-        result = actions.get_versions_report()
-        self.assertEqual('{\n'
-                         '    "aware-bee": [\n'
-                         '        "16.2.7"\n'
-                         '    ],\n'
-                         '    "grand-ape": [\n'
-                         '        "16.2.7"\n'
-                         '    ],\n'
-                         '    "lucky-muskox": [\n'
-                         '        "16.2.7"\n'
-                         '    ],\n'
-                         '    "juju-c8b0a2-3-lxd-0": [\n'
-                         '        "16.2.7"\n'
-                         '    ],\n'
-                         '    "juju-c8b0a2-4-lxd-0": [\n'
-                         '        "16.2.7"\n'
-                         '    ],\n'
-                         '    "juju-c8b0a2-5-lxd-0": [\n'
-                         '        "16.2.7"\n'
-                         '    ]\n'
-                         '}', result)
-
-    def test_get_version_report_fail(self):
-        self.check_output.side_effect = CalledProcessError(1, 'ceph node ls')
-        self.assertRaises(actions.CephReportError,
-                          lambda: actions.get_versions_report())
 
     @mock.patch('socket.gethostname')
     def test_get_quorum_status(self, mock_hostname):
