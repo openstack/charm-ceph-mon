@@ -1,5 +1,7 @@
 #! /usr/bin/python3
 import logging
+import os
+import shutil
 
 from ops.main import main
 
@@ -45,6 +47,8 @@ class CephMonCharm(ops_openstack.core.OSBaseCharm):
         'radosgw', 'lvm2', 'parted', 'smartmontools',
     ]
 
+    NEW_DB_PATH = '.charmhelpers-unit-state.db'
+
     on = CephCharmEvents()
 
     # General charm control callbacks.
@@ -81,12 +85,29 @@ class CephMonCharm(ops_openstack.core.OSBaseCharm):
         if hooks.config_changed():
             self.on.notify_clients.emit()
 
+    def make_db_path(self, suffix):
+        return os.path.join(os.environ.get('CHARM_DIR', ''), suffix)
+
+    def migrate_db(self):
+        """
+        Migrate the Key/Value database into a new location.
+        This is done to avoid conflicts between charmhelpers and
+        the ops library, since they both use the same path and
+        with excluding lock semantics.
+        """
+        db_path = self.make_db_path('.unit-state.db')
+        new_db_path = self.make_db_path(self.NEW_DB_PATH)
+        if os.path.exists(db_path) and not os.path.exists(new_db_path):
+            # The new DB doesn't exist yet. Copy it over.
+            shutil.copy(db_path, new_db_path)
+
     def on_pre_series_upgrade(self, event):
         hooks.pre_series_upgrade()
 
     def on_upgrade(self, event):
         self._initialise_config()
         self.metrics_endpoint.update_alert_rules()
+        self.migrate_db()
         hooks.upgrade_charm()
         self.on.notify_clients.emit()
 
@@ -179,6 +200,11 @@ class CephMonCharm(ops_openstack.core.OSBaseCharm):
             logging.error(
                 "Not running hook, CMR detected and not supported")
             return
+
+        # Make the charmhelpers lib use a different DB path. This is done
+        # so as to avoid conflicts with what the ops framework uses.
+        # See: https://bugs.launchpad.net/charm-ceph-mon/+bug/2005137
+        os.environ['UNIT_STATE_DB'] = self.make_db_path(self.NEW_DB_PATH)
 
         fw = self.framework
 
