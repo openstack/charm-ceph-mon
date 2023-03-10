@@ -93,7 +93,7 @@ class CephClientProvides(Object):
         """Retrieve client application name from relation data."""
         return relation.data[unit].get(
             'application-name',
-            relation.app)
+            relation.app.name)
 
     def _handle_client_relation(self, relation, unit):
         """Handle broker request and set the relation data
