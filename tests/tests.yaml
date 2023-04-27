@@ -26,6 +26,7 @@ tests:
   - zaza.openstack.charm_tests.ceph.tests.CephPrometheusTest
   # Charm upgrade, then re-run tests
   - zaza.charm_tests.lifecycle.tests.UpgradeCharmsToPath;ceph-mon
+  - zaza.openstack.charm_tests.ceph.tests.CephMonJujuPersistent
   - zaza.openstack.charm_tests.ceph.tests.CheckPoolTypes
   - zaza.openstack.charm_tests.ceph.tests.CephLowLevelTest
   - zaza.openstack.charm_tests.ceph.tests.CephTest
