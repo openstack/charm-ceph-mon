@@ -840,6 +840,16 @@ def osd_relation(relid=None, unit=None):
                         'allow command "osd destroy"',
                     ]
                 }
+            ),
+            # Provide a key to the osd for use by the crash module:
+            # https://docs.ceph.com/en/latest/mgr/crash/
+            'client_crash_key': ceph.create_named_keyring(
+                'client',
+                'crash',
+                caps={
+                    'mon': ['profile crash'],
+                    'mgr': ['profile crash'],
+                }
             )
         }
 
