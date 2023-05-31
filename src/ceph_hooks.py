@@ -22,6 +22,8 @@ import sys
 import uuid
 import pathlib
 
+import tenacity
+
 sys.path.append('lib')
 import charms_ceph.utils as ceph
 from charms_ceph.broker import (
@@ -1006,12 +1008,19 @@ def rbd_mirror_relation(relid=None, unit=None, recurse=True):
             unit = remote_unit()
         if is_unsupported_cmr(unit):
             return
+
+        # Add some tenacity in getting pool details
+        @tenacity.retry(wait=tenacity.wait_exponential(max=20),
+                        reraise=True)
+        def get_pool_details():
+            return ceph.list_pools_detail()
+
         # handle broker requests first to get a updated pool map
         data = (handle_broker_request(relid, unit, recurse=recurse))
         data.update({
             'auth': 'cephx',
             'ceph-public-address': get_public_addr(),
-            'pools': json.dumps(ceph.list_pools_detail(), sort_keys=True),
+            'pools': json.dumps(get_pool_details(), sort_keys=True),
             'broker_requests': json.dumps(
                 [rq.request for rq in retrieve_client_broker_requests()],
                 sort_keys=True),
