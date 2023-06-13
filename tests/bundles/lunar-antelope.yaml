@@ -1,5 +1,7 @@
 variables:
   openstack-origin: &openstack-origin distro
+  # use infra (mysql, rabbit) from lts for stability
+  infra-series: &infra-series jammy
 
 series: lunar
 
@@ -8,11 +10,15 @@ comment:
 machines:
   '0':
     constraints: mem=3072M
+    series: *infra-series
   '1':
     constraints: mem=3072M
+    series: *infra-series
   '2':
     constraints: mem=3072M
+    series: *infra-series
   '3':
+    series: *infra-series
   '4':
   '5':
   '6':
@@ -26,38 +32,43 @@ machines:
   '14':
   '15':
   '16':
-    series: focal
   '17':
+    series: focal
 
 
 applications:
 
   keystone-mysql-router:
     charm: ch:mysql-router
-    channel: 8.0.19/edge
+    channel: 8.0/edge
   glance-mysql-router:
     charm: ch:mysql-router
-    channel: 8.0.19/edge
+    channel: 8.0/edge
   cinder-mysql-router:
     charm: ch:mysql-router
-    channel: 8.0.19/edge
+    channel: 8.0/edge
   nova-cloud-controller-mysql-router:
     charm: ch:mysql-router
-    channel: 8.0.19/edge
+    channel: 8.0/edge
   placement-mysql-router:
     charm: ch:mysql-router
-    channel: 8.0.19/edge
+    channel: 8.0/edge
 
   mysql-innodb-cluster:
     charm: ch:mysql-innodb-cluster
     num_units: 3
-    options:
-      source: *openstack-origin
     to:
       - '0'
       - '1'
       - '2'
-    channel: 8.0.19/edge
+    channel: 8.0/edge
+
+  rabbitmq-server:
+    charm: ch:rabbitmq-server
+    num_units: 1
+    to:
+      - '3'
+    channel: 3.9/edge
 
   ceph-osd:
     charm: ch:ceph-osd
@@ -68,9 +79,9 @@ applications:
       source: *openstack-origin
       osd-devices: '/dev/test-non-existent'
     to:
-      - '3'
       - '4'
       - '5'
+      - '6'
     channel: quincy/edge
 
   ceph-mon:
@@ -81,9 +92,9 @@ applications:
       source: *openstack-origin
       monitor-count: '3'
     to:
-      - '6'
       - '7'
       - '8'
+      - '9'
 
   ceph-fs:
     charm: ch:ceph-fs
@@ -92,16 +103,7 @@ applications:
       source: *openstack-origin
     channel: quincy/edge
     to: 
-    - '17'
-
-  rabbitmq-server:
-    charm: ch:rabbitmq-server
-    num_units: 1
-    options:
-      source: *openstack-origin
-    to:
-      - '9'
-    channel: 3.9/edge
+    - '10'
 
   keystone:
     expose: True
@@ -110,8 +112,8 @@ applications:
     options:
       openstack-origin: *openstack-origin
     to:
-      - '10'
-    channel: antelope/edge
+      - '11'
+    channel: 2023.1/edge
 
   nova-compute:
     charm: ch:nova-compute
@@ -120,8 +122,8 @@ applications:
       openstack-origin: *openstack-origin
       libvirt-image-backend: rbd
     to:
-      - '11'
-    channel: antelope/edge
+      - '12'
+    channel: 2023.1/edge
 
   glance:
     expose: True
@@ -130,8 +132,8 @@ applications:
     options:
       openstack-origin: *openstack-origin
     to:
-      - '12'
-    channel: antelope/edge
+      - '13'
+    channel: 2023.1/edge
 
   cinder:
     expose: True
@@ -142,8 +144,8 @@ applications:
       glance-api-version: '2'
       openstack-origin: *openstack-origin
     to:
-      - '13'
-    channel: antelope/edge
+      - '14'
+    channel: 2023.1/edge
 
   cinder-ceph:
     charm: ch:cinder-ceph
@@ -156,8 +158,8 @@ applications:
     options:
       openstack-origin: *openstack-origin
     to:
-      - '14'
-    channel: antelope/edge
+      - '15'
+    channel: 2023.1/edge
 
   placement:
     charm: ch:placement
@@ -165,15 +167,15 @@ applications:
     options:
       openstack-origin: *openstack-origin
     to:
-      - '15'
-    channel: antelope/edge
+      - '16'
+    channel: 2023.1/edge
 
   prometheus2:
     charm: ch:prometheus2
     num_units: 1
     series: focal
     to:
-      - '16'
+      - '17'
 
 relations:
   - - 'nova-compute:amqp'
