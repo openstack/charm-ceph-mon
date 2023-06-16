@@ -909,17 +909,12 @@ def osd_relation(relid=None, unit=None):
             osd_memory_target = relation_get(
                 rid=relid, unit=unit, attribute='osd-memory-target'
             )
-            if osd_host:
-                if osd_memory_target:
-                    ceph.ceph_config_set(
-                        "osd_memory_target",
-                        osd_memory_target,
-                        osd,
-                    )
-                else:
-                    subprocess.check_call(
-                        ["ceph", "config", "rm", osd, "osd_memory_target"]
-                    )
+            if all([osd_host, osd_memory_target]):
+                ceph.ceph_config_set(
+                    "osd_memory_target",
+                    osd_memory_target,
+                    osd,
+                )
 
     else:
         log('mon cluster not in quorum - deferring fsid provision')
