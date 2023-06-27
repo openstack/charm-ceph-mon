@@ -63,3 +63,8 @@ class TestCephCharm(unittest.TestCase):
             fatal=True,
         )
         apt_update.assert_called()
+
+    @patch("charm.hooks")
+    def test_on_pre_commit(self, hooks):
+        self.harness.charm.on.framework.on.pre_commit.emit()
+        hooks.hookenv._run_atexit.assert_called()

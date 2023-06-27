@@ -158,6 +158,13 @@ class CephMonCharm(ops_openstack.core.OSBaseCharm):
     def on_commit(self, _event):
         self.ceph_status.assess_status()
 
+    def on_pre_commit(self, _event):
+        # Fix bug: https://bugs.launchpad.net/charm-ceph-mon/+bug/2007976
+        # The persistent config file doesn't update because the config save
+        # function handled by atexit is not triggered.
+        # Trigger it manually here.
+        hooks.hookenv._run_atexit()
+
     # Actions.
 
     def _observe_action(self, on_action, callable):
@@ -279,6 +286,8 @@ class CephMonCharm(ops_openstack.core.OSBaseCharm):
                    self.on_nrpe_relation)
 
         fw.observe(self.on.notify_clients, self.notify_clients)
+
+        fw.observe(self.on.framework.on.pre_commit, self.on_pre_commit)
 
     def ready_for_service(self):
         return hooks.ready_for_service()
