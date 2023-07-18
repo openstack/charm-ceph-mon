@@ -4,6 +4,7 @@ maintainer: OpenStack Charmers <openstack-charmers@lists.ubuntu.com>
 description: |
   Ceph is a distributed storage and network file system designed to provide
   excellent performance, reliability, and scalability.
+docs: https://discourse.charmhub.io/t/ceph-mon-docs-index/10544
 tags:
 - openstack
 - storage
