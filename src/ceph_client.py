@@ -37,7 +37,7 @@ class CephClientProvides(Object):
     def __init__(self, charm, relation_name='client'):
         super().__init__(charm, relation_name)
 
-        self._stored.set_default(processed=[])
+        self._stored.set_default(processed=[], processed_map={})
         self.charm = charm
         self.this_unit = self.model.unit
         self.relation_name = relation_name
@@ -49,6 +49,8 @@ class CephClientProvides(Object):
             charm.on[self.relation_name].relation_changed,
             self._on_relation_changed
         )
+
+        self._stored.processed_map = {}
 
     def notify_all(self):
         send_osd_settings()
@@ -122,22 +124,6 @@ class CephClientProvides(Object):
         for k, v in data.items():
             relation.data[self.this_unit][k] = str(v)
 
-    def _req_already_treated(self, request_id):
-        """Check if broker request already handled.
-
-        The local relation data holds all the broker request/responses that
-        are handled as a dictionary. There will be a single entry for each
-        unit that makes broker request in the form of broker-rsp-<unit name>:
-        {reqeust-id: <id>, ..}. Verify if request_id exists in the relation
-        data broker response for the requested unit.
-
-        :param request_id: Request ID
-        :type request_id: str
-        :returns: Whether request is already handled
-        :rtype: bool
-        """
-        return request_id in self._stored.processed
-
     def _handle_broker_request(
             self, relation, unit, add_legacy_response=False):
         """Retrieve broker request from relation, process, return response data.
@@ -186,23 +172,28 @@ class CephClientProvides(Object):
                         broker_req_id))
                 return {}
 
-            if self._req_already_treated(broker_req_id):
-                logger.debug(
-                    "Ignoring already executed broker request {}".format(
-                        broker_req_id))
-                return {}
-
-            rsp = self.charm.process_broker_request(
-                broker_req_id, settings['broker_req'])
             unit_id = settings.get(
                 'unit-name', unit.name).replace('/', '-')
             unit_response_key = 'broker-rsp-' + unit_id
+            prev_result = self._stored.processed_map.get(broker_req_id)
+            if prev_result is not None:
+                # The broker request has been processed already and we have
+                # stored the result. Log it so that the users may know and
+                # return the cached value, with the unit key.
+                logger.debug(
+                    "Ignoring already executed broker request {}".format(
+                        broker_req_id))
+                rsp = {unit_response_key: prev_result}
+                if add_legacy_response:
+                    rsp.update({'broker_rsp': prev_result})
+                return rsp
+
+            rsp = self.charm.process_broker_request(
+                broker_req_id, settings['broker_req'])
             response.update({unit_response_key: rsp})
             if add_legacy_response:
                 response.update({'broker_rsp': rsp})
-            processed = self._stored.processed
-            processed.append(broker_req_id)
-            self._stored.processed = processed
+            self._stored.processed_map[broker_req_id] = rsp
         else:
             logger.warn('broker_req not in settings: {}'.format(settings))
         return response
