@@ -1203,7 +1203,7 @@ def update_nrpe_config():
             name = "ceph-{}".format(key.replace(" ", ""))
             log("Adding check {}".format(name))
             check_cmd = 'check_ceph_status.py -f {}' \
-                ' --additional_check \\\"{}\\\"' \
+                ' --additional_check \"{}\"' \
                 ' {}'.format(STATUS_FILE, value,
                              "--additional_check_critical"
                              if additional_critical is True else "")
