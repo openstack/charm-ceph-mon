@@ -18,6 +18,7 @@ import socket
 import subprocess
 import errno
 
+import tenacity
 from charms_ceph import utils as ceph_utils
 from charmhelpers.core.hookenv import (
     DEBUG,
@@ -328,10 +329,16 @@ def execute_post_osd_upgrade_steps(ceph_osd_release):
         log(message=msg, level='ERROR')
 
 
-def _all_ceph_versions_same():
-    """Checks that ceph-mon and ceph-osd have converged to the same version.
+@tenacity.retry(
+    wait=tenacity.wait_exponential(multiplier=1, max=10),
+    reraise=True,
+    stop=tenacity.stop_after_attempt(8))
+def _get_versions():
+    """Gets the ceph versions.
 
-    :return boolean: True if all same, false if not or command failed.
+    Retry if the commands fails to give the cluster time to settle.
+
+    :return tuple: (bool, dict) True if successful, False if not, and a dict
     """
     try:
         versions_command = 'ceph versions'
@@ -341,11 +348,25 @@ def _all_ceph_versions_same():
         if call_error.returncode == errno.EINVAL:
             log('Calling "ceph versions" failed. Command requires '
                 'luminous and above.', level='WARNING')
-            return False
+            return False, {}
         else:
             log('Calling "ceph versions" failed.', level='ERROR')
             raise OsdPostUpgradeError(call_error)
+    log('Versions: {}'.format(versions_str), level='DEBUG')
     versions_dict = json.loads(versions_str)
+    # provoke keyerror if we don't have osd versions yet to cause a retry
+    _ = versions_dict['osd']
+    return True, versions_dict
+
+
+def _all_ceph_versions_same():
+    """Checks that ceph-mon and ceph-osd have converged to the same version.
+
+    :return boolean: True if all same, false if not or command failed.
+    """
+    ok, versions_dict = _get_versions()
+    if not ok:
+        return False
     if len(versions_dict['overall']) > 1:
         log('All upgrades of mon and osd have not completed.')
         return False

@@ -172,7 +172,7 @@ class CephUtilsTestCase(test_utils.CharmTestCase):
         self.assertTrue(
             return_bool,
             msg='all_ceph_versions_same returned False but should be True')
-        log.assert_not_called()
+        log.assert_called_once()
 
     @mock.patch.object(utils.subprocess, 'check_output')
     @mock.patch.object(utils.json, 'loads')
@@ -190,7 +190,7 @@ class CephUtilsTestCase(test_utils.CharmTestCase):
         self.assertFalse(
             return_bool,
             msg='all_ceph_versions_same returned True but should be False')
-        log.assert_called_once()
+        self.assertEquals(log.call_count, 2)
 
     @mock.patch.object(utils.subprocess, 'check_output')
     @mock.patch.object(utils.json, 'loads')
@@ -208,7 +208,7 @@ class CephUtilsTestCase(test_utils.CharmTestCase):
         self.assertFalse(
             return_bool,
             msg='all_ceph_versions_same returned True but should be False')
-        log.assert_called_once()
+        self.assertEquals(log.call_count, 2)
 
     @mock.patch.object(utils.subprocess, 'check_output')
     @mock.patch.object(utils, 'log')
