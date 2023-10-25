@@ -54,6 +54,8 @@ CHARM_CONFIG = {'config-flags': '',
                 'nagios_raise_nodeepscrub': True,
                 'nagios_additional_checks': "",
                 'nagios_additional_checks_critical': False,
+                'nagios_rgw_zones': "",
+                'nagios_rgw_additional_checks': "",
                 'nagios_check_num_osds': False,
                 'disable-pg-max-object-skew': False}
 

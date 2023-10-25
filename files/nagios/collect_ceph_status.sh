@@ -31,3 +31,14 @@ ceph osd tree --format json > ${TMP_FILE}
 chown root:nagios ${TMP_FILE}
 chmod 0640 ${TMP_FILE}
 mv ${TMP_FILE} ${DATA_FILE}
+
+
+# Note: radosgw-admin sync status doesn't support outputting in json at time of writing
+DATA_FILE="${DATA_DIR}/current-radosgw-admin-sync-status.raw"
+TMP_FILE=$(mktemp -p ${DATA_DIR})
+
+radosgw-admin sync status > ${TMP_FILE}
+
+chown root:nagios ${TMP_FILE}
+chmod 0640 ${TMP_FILE}
+mv ${TMP_FILE} ${DATA_FILE}
