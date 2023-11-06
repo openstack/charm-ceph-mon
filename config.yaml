@@ -326,3 +326,13 @@ options:
     description: |
       The balancer mode used by the Ceph manager. Can only be set for Luminous or
       later versions, and only when the balancer module is enabled.
+  rbd-stats-pools:
+    type: string
+    default: ""
+    description: |
+        Set pools to collect RBD per-image IO statistics by enabling dynamic OSD performance counters.
+        It can be set to:
+          - a comma separated list of RBD pools to enable (eg. "pool1,pool2,poolN")
+          - "*" to enable for all RBD pools
+          - "" to disable statistics
+        For more information: https://docs.ceph.com/en/latest/mgr/prometheus/#rbd-io-statistics

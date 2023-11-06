@@ -52,6 +52,7 @@ class TestCephMetrics(unittest.TestCase):
             "metrics-endpoint",
         )
 
+    @patch("ceph_metrics.mgr_config_set_rbd_stats_pools", lambda: None)
     @patch("ceph_metrics.ceph_utils.is_bootstrapped", return_value=True)
     @patch("ceph_metrics.ceph_utils.is_mgr_module_enabled", return_value=False)
     @patch("ceph_metrics.ceph_utils.mgr_enable_module")

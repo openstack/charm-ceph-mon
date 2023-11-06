@@ -18,6 +18,7 @@ with patch('charmhelpers.contrib.hardening.harden.harden') as mock_dec:
     mock_dec.side_effect = (lambda *dargs, **dkwargs: lambda f:
                             lambda *args, **kwargs: f(*args, **kwargs))
     import ceph_hooks
+    import utils
 
 TO_PATCH = [
     'config',
@@ -55,7 +56,8 @@ CHARM_CONFIG = {'config-flags': '',
                 'nagios_additional_checks': "",
                 'nagios_additional_checks_critical': False,
                 'nagios_check_num_osds': False,
-                'disable-pg-max-object-skew': False}
+                'disable-pg-max-object-skew': False,
+                'rbd-stats-pools': 'foo'}
 
 
 class CephHooksTestCase(test_utils.CharmTestCase):
@@ -310,6 +312,8 @@ class CephHooksTestCase(test_utils.CharmTestCase):
             ceph_hooks.get_client_application_name('rel:1', None),
             'glance')
 
+    @patch.object(utils, 'is_leader', lambda: False)
+    @patch.object(ceph_hooks.ceph, 'mgr_config_set', lambda _key, _value: None)
     @patch.object(ceph_hooks.ceph, 'list_pools')
     @patch.object(ceph_hooks, 'mgr_enable_module')
     @patch.object(ceph_hooks, 'emit_cephconf')
@@ -333,6 +337,8 @@ class CephHooksTestCase(test_utils.CharmTestCase):
         ceph_hooks.config_changed()
         mgr_enable_module.assert_not_called()
 
+    @patch.object(utils, 'is_leader', lambda: False)
+    @patch.object(ceph_hooks.ceph, 'mgr_config_set', lambda _key, _value: None)
     @patch.object(ceph_hooks.ceph, 'monitor_key_set')
     @patch.object(ceph_hooks.ceph, 'list_pools')
     @patch.object(ceph_hooks, 'mgr_enable_module')
@@ -362,6 +368,8 @@ class CephHooksTestCase(test_utils.CharmTestCase):
         mgr_enable_module.assert_called_once_with('pg_autoscaler')
         monitor_key_set.assert_called_once_with('admin', 'autotune', 'true')
 
+    @patch.object(utils, 'is_leader', lambda: False)
+    @patch.object(ceph_hooks.ceph, 'mgr_config_set', lambda _key, _value: None)
     @patch.object(ceph_hooks.ceph, 'list_pools')
     @patch.object(ceph_hooks, 'mgr_enable_module')
     @patch.object(ceph_hooks, 'emit_cephconf')
@@ -671,6 +679,7 @@ class BootstrapSourceTestCase(test_utils.CharmTestCase):
         self.assertRaises(AssertionError,
                           ceph_hooks.bootstrap_source_relation_changed)
 
+    @patch.object(utils, 'is_leader', lambda: False)
     @patch.object(ceph_hooks.ceph, 'is_bootstrapped')
     @patch.object(ceph_hooks, 'emit_cephconf')
     @patch.object(ceph_hooks, 'leader_get')
@@ -705,6 +714,50 @@ class BootstrapSourceTestCase(test_utils.CharmTestCase):
         _emit_cephconf.assert_called_once_with()
         _is_bootstrapped.assert_called_once_with()
 
+    @patch.object(utils, 'is_leader', lambda: True)
+    @patch.object(utils, 'config', lambda _: 'pool1')
+    @patch.object(utils.ceph_utils, 'mgr_config_set')
+    @patch.object(ceph_hooks.ceph, 'is_bootstrapped')
+    @patch.object(ceph_hooks, 'emit_cephconf')
+    @patch.object(ceph_hooks, 'leader_get')
+    @patch.object(ceph_hooks, 'is_leader')
+    @patch.object(ceph_hooks, 'relations_of_type')
+    @patch.object(ceph_hooks, 'get_mon_hosts')
+    @patch.object(ceph_hooks, 'check_for_upgrade')
+    @patch.object(ceph_hooks, 'config')
+    def test_config_changed_leader(
+        self,
+        _config,
+        _check_for_upgrade,
+        _get_mon_hosts,
+        _relations_of_type,
+        _is_leader,
+        _leader_get,
+        _emit_cephconf,
+        _is_bootstrapped,
+        _mgr_config_set
+    ):
+        config = copy.deepcopy(CHARM_CONFIG)
+        _config.side_effect = \
+            lambda key=None: config.get(key, None) if key else config
+        _relations_of_type.return_value = False
+        _is_leader.return_value = True
+        _leader_get.side_effect = ['fsid', 'monsec', 'fsid', 'monsec']
+        _is_bootstrapped.return_value = True
+        ceph_hooks.config_changed()
+        _check_for_upgrade.assert_called_once_with()
+        _get_mon_hosts.assert_called_once_with()
+        _leader_get.assert_has_calls([
+            call('fsid'),
+            call('monitor-secret'),
+        ])
+        _emit_cephconf.assert_called_once_with()
+        _is_bootstrapped.assert_has_calls([call(), call()])
+        _mgr_config_set.assert_called_once_with(
+            'mgr/prometheus/rbd_stats_pools', 'pool1'
+        )
+
+    @patch.object(utils, 'is_leader', lambda: False)
     @patch.object(ceph_hooks, 'emit_cephconf')
     @patch.object(ceph_hooks, 'create_sysctl')
     @patch.object(ceph_hooks, 'check_for_upgrade')
