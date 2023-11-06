@@ -19,6 +19,7 @@ import subprocess
 import errno
 
 import tenacity
+from charms_ceph import utils as ceph_utils
 from charmhelpers.core.hookenv import (
     DEBUG,
     cached,
@@ -417,3 +418,13 @@ def _set_require_osd_release(release):
         msg = 'Unable to execute command <{}>'.format(call_error.cmd)
         log(message=msg, level='ERROR')
         raise OsdPostUpgradeError(call_error)
+
+
+def mgr_config_set_rbd_stats_pools():
+    """Update ceph mgr config with the value from rbd-status-pools config
+    """
+    if is_leader() and ceph_utils.is_bootstrapped():
+        ceph_utils.mgr_config_set(
+            'mgr/prometheus/rbd_stats_pools',
+            config('rbd-stats-pools')
+        )

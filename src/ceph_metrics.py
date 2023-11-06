@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 from charms.prometheus_k8s.v0 import prometheus_scrape
 from charms_ceph import utils as ceph_utils
 from ops.framework import BoundEvent
+from utils import mgr_config_set_rbd_stats_pools
 
 
 logger = logging.getLogger(__name__)
@@ -64,6 +65,7 @@ class CephMetricsEndpointProvider(prometheus_scrape.MetricsEndpointProvider):
             logger.debug(
                 "is_leader and is_bootstrapped, running rel changed: %s", event
             )
+            mgr_config_set_rbd_stats_pools()
             ceph_utils.mgr_enable_module("prometheus")
             logger.debug("module_enabled")
             self.update_alert_rules()

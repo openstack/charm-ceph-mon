@@ -92,6 +92,7 @@ from utils import (
     get_rbd_features,
     get_ceph_osd_releases,
     execute_post_osd_upgrade_steps,
+    mgr_config_set_rbd_stats_pools,
     mgr_disable_module,
     mgr_enable_module,
     is_mgr_module_enabled,
@@ -376,6 +377,9 @@ def config_changed():
         try_disable_insecure_reclaim()
     for relid in relation_ids('dashboard'):
         dashboard_relation(relid)
+
+    mgr_config_set_rbd_stats_pools()
+
     return True
 
 
@@ -502,6 +506,7 @@ def prometheus_relation(relid=None, unit=None, prometheus_permitted=None,
                           mgr_enable_module('prometheus'))
     log("checking if prometheus module is enabled")
     if prometheus_permitted and module_enabled:
+        mgr_config_set_rbd_stats_pools()
         log("Updating prometheus")
         data = {
             'hostname': get_relation_ip('prometheus'),
