@@ -13,8 +13,25 @@
 # limitations under the License.
 
 import sys
+
+from unittest import mock
+
+
 sys.path.append('hooks')
 sys.path.append('lib')
 sys.path.append('unit_tests')
 sys.path.append('actions')
 sys.path.append('src')
+
+
+# Patch out lsb_release() and get_platform() as unit tests should be fully
+# insulated from the underlying platform.  Unit tests assume that the system is
+# ubuntu jammy.
+mock.patch(
+    'charmhelpers.osplatform.get_platform', return_value='ubuntu'
+).start()
+mock.patch(
+    'charmhelpers.core.host.lsb_release',
+    return_value={
+        'DISTRIB_CODENAME': 'jammy'
+    }).start()
