@@ -25,7 +25,6 @@ import ceph_metrics
 
 import ops_actions
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -217,6 +216,7 @@ class CephMonCharm(ops_openstack.core.OSBaseCharm):
 
         self.clients = ceph_client.CephClientProvides(self)
         self.metrics_endpoint = ceph_metrics.CephMetricsEndpointProvider(self)
+        self.cos_agent = ceph_metrics.CephCOSAgentProvider(self)
         self.ceph_status = ceph_status.StatusAssessor(self)
         self.mds = ceph_mds.CephMdsProvides(self)
 
