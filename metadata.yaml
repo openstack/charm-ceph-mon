@@ -43,6 +43,9 @@ provides:
     interface: prometheus_scrape
   dashboard:
     interface: ceph-dashboard
+  cos-agent:
+    interface: cos_agent
+
 requires:
   bootstrap-source:
     interface: ceph-bootstrap
