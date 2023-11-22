@@ -57,3 +57,6 @@ pyopenssl<=22.0.0
 
 # newer jsonschema needs rustc and cargo
 jsonschema<4.18.0
+
+pydantic < 2
+cosl

@@ -9,6 +9,8 @@ import json
 import logging
 import os.path
 import pathlib
+import socket
+
 from typing import Optional, Union, List, TYPE_CHECKING
 
 import ops.model
@@ -17,6 +19,7 @@ if TYPE_CHECKING:
     import charm
 
 from charms.prometheus_k8s.v0 import prometheus_scrape
+from charms.grafana_agent.v0 import cos_agent
 from charms_ceph import utils as ceph_utils
 from ops.framework import BoundEvent
 from utils import mgr_config_set_rbd_stats_pools
@@ -27,6 +30,10 @@ logger = logging.getLogger(__name__)
 DEFAULT_CEPH_JOB = {
     "metrics_path": "/metrics",
     "static_configs": [{"targets": ["*:9283"]}],
+}
+DEFAULT_CEPH_METRICS_ENDPOINT = {
+    "path": "/metrics",
+    "port": 9283,
 }
 DEFAULT_ALERT_RULES_RELATIVE_PATH = "files/prometheus_alert_rules"
 
@@ -144,3 +151,77 @@ class CephMetricsEndpointProvider(prometheus_scrape.MetricsEndpointProvider):
                 self._charm._stored.alert_rule_errors = msg
                 return
             self._set_alert_rules(alert_rules_as_dict)
+
+
+class CephCOSAgentProvider(cos_agent.COSAgentProvider):
+
+    def __init__(self, charm):
+        super().__init__(
+            charm,
+            metrics_rules_dir="./files/prometheus_alert_rules",
+            dashboard_dirs=["./files/grafana_dashboards"],
+            scrape_configs=self._custom_scrape_configs,
+        )
+        events = self._charm.on[cos_agent.DEFAULT_RELATION_NAME]
+        self.framework.observe(
+            events.relation_departed, self._on_relation_departed
+        )
+
+    def _on_refresh(self, event):
+        """Enable prometheus on relation change"""
+        if self._charm.unit.is_leader() and ceph_utils.is_bootstrapped():
+            logger.debug("refreshing cos_agent relation")
+            mgr_config_set_rbd_stats_pools()
+            ceph_utils.mgr_enable_module("prometheus")
+        super()._on_refresh(event)
+
+    def _on_relation_departed(self, event):
+        """Disable prometheus on depart of relation"""
+        if self._charm.unit.is_leader() and ceph_utils.is_bootstrapped():
+            logger.debug(
+                "is_leader and is_bootstrapped, running rel departed: %s",
+                event,
+            )
+            ceph_utils.mgr_disable_module("prometheus")
+            logger.debug("module_disabled")
+
+    def _custom_scrape_configs(self):
+        fqdn = socket.getfqdn()
+        fqdn_parts = fqdn.split('.')
+        domain = '.'.join(fqdn_parts[1:]) if len(fqdn_parts) > 1 else fqdn
+        return [
+            {
+                "metrics_path": "/metrics",
+                "static_configs": [{"targets": ["localhost:9283"]}],
+                "honor_labels": True,
+                "metric_relabel_configs": [
+                    {
+                        # localhost:9283 is the generic default instance label
+                        # added by grafana-agent which is kinda useless.
+                        # Replace it with a somewhat more meaningful label
+                        "source_labels": ["instance"],
+                        "regex": "^localhost:9283$",
+                        "target_label": "instance",
+                        "action": "replace",
+                        "replacement": "ceph_cluster",
+                    },
+                    {   # if we have a non-empty hostname label, use it as the
+                        # instance label
+                        "source_labels": ["hostname"],
+                        "regex": "(.+)",
+                        "target_label": "instance",
+                        "action": "replace",
+                        "replacement": "${1}",
+                    },
+                    {   # tack on the domain to the instance label to make it
+                        # conform to grafana-agent's node-exporter expectations
+                        "source_labels": ["instance"],
+                        "regex": "(.*)",
+                        "target_label": "instance",
+                        "action": "replace",
+                        "replacement": "${1}." + domain,
+                    },
+                ]
+            },
+
+        ]

@@ -99,13 +99,45 @@ def _handle_rgw_key_rotation(entity, event, model):
     event.fail("Entity %s not found" % entity)
 
 
+def _find_mds_unit(relations, mds_name):
+    for relation in relations:
+        for unit in relation.units:
+            try:
+                if mds_name == relation.data[unit]['mds-name']:
+                    return relation.data
+            except KeyError:
+                logger.exception('mds name not found in relation data bag')
+
+
+def _handle_mds_key_rotation(entity, event, model):
+    mds_name = entity[4:]
+    relations = model.relations.get('mds')
+    if not relations:
+        event.fail('No mds relations found')
+        return
+
+    bag = _find_mds_unit(relations, mds_name)
+    if bag is None:
+        event.fail('No unit found for entity: %s' % entity)
+        return
+
+    pending_key = _create_key(entity, event)
+    bag[model.unit][mds_name + "_mds_key"] = pending_key
+    event.set_results({'message': 'success'})
+
+
 def _get_osd_tree():
     out = subprocess.check_output(["sudo", "ceph", "osd", "dump",
                                    "--format=json"])
     return json.loads(out.decode("utf8")).get("osds", ())
 
 
-def _get_osd_addr(osd_id, tree=None):
+def _clean_address(addr):
+    ix = addr.find(":")
+    return addr if ix < 0 else addr[0:ix]
+
+
+def _get_osd_addrs(osd_id, tree=None):
     if tree is None:
         tree = _get_osd_tree()
 
@@ -113,9 +145,9 @@ def _get_osd_addr(osd_id, tree=None):
         if osd.get("osd") != osd_id:
             continue
 
-        addr = osd["public_addr"]
-        ix = addr.find(":")
-        return addr if ix < 0 else addr[0:ix]
+        return [_clean_address(osd[x])
+                for x in ("public_addr", "cluster_addr")
+                if x in osd]
 
 
 def _get_unit_addr(unit, rel_id):
@@ -125,13 +157,13 @@ def _get_unit_addr(unit, rel_id):
 
 
 def _find_osd_unit(relations, model, osd_id, tree):
-    addr = _get_osd_addr(osd_id, tree)
-    if not addr:
+    addrs = _get_osd_addrs(osd_id, tree)
+    if not addrs:
         return None
 
     for relation in relations:
         for unit in relation.units:
-            if _get_unit_addr(unit.name, relation.id) == addr:
+            if _get_unit_addr(unit.name, relation.id) in addrs:
                 return relation.data[model.unit]
 
 
@@ -225,6 +257,8 @@ def rotate_key(event, model=None) -> None:
         event.set_results({"message": "success"})
     elif entity.startswith("client.rgw."):
         _handle_rgw_key_rotation(entity, event, model)
+    elif entity.startswith('mds.'):
+        _handle_mds_key_rotation(entity, event, model)
     elif entity == "osd":
         _rotate_all_osds(event, model)
     elif entity.startswith("osd."):
