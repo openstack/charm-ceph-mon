@@ -13,6 +13,7 @@ tags:
 series:
 - focal
 - jammy
+- kinetic
 peers:
   mon:
     interface: ceph
