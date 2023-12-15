@@ -96,7 +96,7 @@ applications:
     num_units: 1
     to:
       - '9'
-    channel: latest/edge
+    channel: 3.9/edge
 
   keystone:
     expose: True
