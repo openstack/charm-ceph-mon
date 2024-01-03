@@ -420,6 +420,10 @@ def _set_require_osd_release(release):
         raise OsdPostUpgradeError(call_error)
 
 
+@tenacity.retry(
+    wait=tenacity.wait_exponential(multiplier=1, max=10),
+    reraise=True,
+    stop=tenacity.stop_after_attempt(30))
 def mgr_config_set_rbd_stats_pools():
     """Update ceph mgr config with the value from rbd-status-pools config
     """
