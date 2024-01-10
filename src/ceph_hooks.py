@@ -109,6 +109,8 @@ NAGIOS_PLUGINS = '/usr/local/lib/nagios/plugins'
 NAGIOS_FILE_FOLDER = '/var/lib/nagios'
 SCRIPTS_DIR = '/usr/local/bin'
 STATUS_FILE = '{}/cat-ceph-status.txt'.format(NAGIOS_FILE_FOLDER)
+RADOSGW_STATUS_FILE = ('{}/current-radosgw-admin-sync-status.raw'
+                       .format(NAGIOS_FILE_FOLDER))
 STATUS_CRONFILE = '/etc/cron.d/cat-ceph-health'
 HOST_OSD_COUNT_REPORT = '{}/host-osd-report.json'.format(NAGIOS_FILE_FOLDER)
 
@@ -1198,6 +1200,10 @@ def update_nrpe_config():
                            'check_ceph_osd_count.py'),
               os.path.join(NAGIOS_PLUGINS, 'check_ceph_osd_count.py'))
 
+        rsync(os.path.join(os.getenv('CHARM_DIR'), 'files', 'nagios',
+                           'check_radosgw_sync_status.py'),
+              os.path.join(NAGIOS_PLUGINS, 'check_radosgw_sync_status.py'))
+
     script = os.path.join(SCRIPTS_DIR, 'collect_ceph_status.sh')
     rsync(os.path.join(os.getenv('CHARM_DIR'), 'files',
                        'nagios', 'collect_ceph_status.sh'),
@@ -1257,6 +1263,21 @@ def update_nrpe_config():
             description='Check whether all OSDs are up and in',
             check_cmd=check_cmd
         )
+
+    check_cmd = ('check_radosgw_sync_status.py -f {}'
+                 .format(RADOSGW_STATUS_FILE))
+    if config('nagios_rgw_zones'):
+        check_cmd += ' --zones "{}"'.format(config('nagios_rgw_zones'))
+    if config('nagios_rgw_additional_checks'):
+        x = ast.literal_eval(config('nagios_rgw_additional_checks'))
+        for check in x:
+            check_cmd += ' --additional_check \"{}\"'.format(check)
+    nrpe_setup.add_check(
+        shortname='radosgw_multizone',
+        description='Check multizone radosgw health',
+        check_cmd=check_cmd
+    )
+
     nrpe_setup.write()
 
 
