@@ -329,10 +329,6 @@ def execute_post_osd_upgrade_steps(ceph_osd_release):
         log(message=msg, level='ERROR')
 
 
-@tenacity.retry(
-    wait=tenacity.wait_exponential(multiplier=1, max=10),
-    reraise=True,
-    stop=tenacity.stop_after_attempt(8))
 def _get_versions():
     """Gets the ceph versions.
 
@@ -354,8 +350,6 @@ def _get_versions():
             raise OsdPostUpgradeError(call_error)
     log('Versions: {}'.format(versions_str), level='DEBUG')
     versions_dict = json.loads(versions_str)
-    # provoke keyerror if we don't have osd versions yet to cause a retry
-    _ = versions_dict['osd']
     return True, versions_dict
 
 
@@ -370,7 +364,7 @@ def _all_ceph_versions_same():
     if len(versions_dict['overall']) > 1:
         log('All upgrades of mon and osd have not completed.')
         return False
-    if len(versions_dict['osd']) < 1:
+    if len(versions_dict.get('osd', [])) < 1:
         log('Monitors have converged but no osd versions found.',
             level='WARNING')
         return False
