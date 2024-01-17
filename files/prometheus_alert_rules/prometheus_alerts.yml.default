@@ -633,3 +633,50 @@ groups:
           oid: "1.3.6.1.4.1.50495.1.2.1.1.2"
           severity: "critical"
           type: "ceph_default"
+  - name: "rgwmultisite"
+    rules:
+      - alert: "CephRGWMultisiteFetchError"
+        annotations:
+          description: "Unsuccessful Object Replications from source zone threshold has been exceeded. The threshold is defined as 2 errors per 15min"
+          summary: "Unsuccessful Object Replications from Source Zone Threshold Exceeded"
+        expr: "increase(ceph_data_sync_from_zone_fetch_errors[15m]) > 2"
+        for: "5m"
+        labels:
+          severity: "warning"
+          type: "ceph_default"
+      - alert: "CephRGWMultisitePollError"
+        annotations:
+          description: "Unsuccessful Object Replications from Source Zone Threshold Exceeded. The threshold is defined as 2 errors per 15min"
+          summary: "Unsuccessful Object Replications from Source Zone Threshold Exceeded"
+        expr: "increase(ceph_data_sync_from_zone_poll_errors[15m]) > 2"
+        for: "5m"
+        labels:
+          severity: "warning"
+          type: "ceph_default"
+      - alert: "CephRGWMultisiteFetchErrorCritical"
+        annotations:
+          description: "Critical: Unsuccessful Object Replications from source zone threshold has been exceeded. The threshold is defined as 50 errors per 15min"
+          summary: "Critical: Unsuccessful Object Replications from Source Zone Threshold Exceeded"
+        expr: "increase(ceph_data_sync_from_zone_fetch_errors[15m]) > 50"
+        for: "5m"
+        labels:
+          severity: "critical"
+          type: "ceph_default"
+      - alert: "CephRGWMultisitePollErrorCritical"
+        annotations:
+          description: "Critical: Unsuccessful Object Replications from source zone threshold has been exceeded. The threshold is defined as 50 errors per 15min"
+          summary: "Critical: Unsuccessful Object Replications from Source Zone Threshold Exceeded"
+        expr: "increase(ceph_data_sync_from_zone_poll_errors[15m]) > 50"
+        for: "5m"
+        labels:
+          severity: "critical"
+          type: "ceph_default"
+      - alert: "CephRGWMultisitePollLatency"
+        annotations:
+          description: "Latency for poll request threshold exceeded. The threshold is defined as 600s latency per 15min"
+          summary: "Poll Request Latency Threshold Exceeded"
+        expr: "increase(ceph_data_sync_from_zone_poll_latency_sum[15m]) > 600"
+        for: "5m"
+        labels:
+          severity: "warning"
+          type: "ceph_default"
