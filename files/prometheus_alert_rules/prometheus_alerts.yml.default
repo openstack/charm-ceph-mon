@@ -646,8 +646,8 @@ groups:
           type: "ceph_default"
       - alert: "CephRGWMultisitePollError"
         annotations:
-          description: "Unsuccessful Object Replications from Source Zone Threshold Exceeded. The threshold is defined as 2 errors per 15min"
-          summary: "Unsuccessful Object Replications from Source Zone Threshold Exceeded"
+          description: "Unsuccessful replication log request errors threshold has been exceeded. The threshold is defined as 2 errors per 15min"
+          summary: "Unsuccessful Replication Log Request Errors Threshold Exceeded"
         expr: "increase(ceph_data_sync_from_zone_poll_errors[15m]) > 2"
         for: "5m"
         labels:
@@ -664,8 +664,8 @@ groups:
           type: "ceph_default"
       - alert: "CephRGWMultisitePollErrorCritical"
         annotations:
-          description: "Critical: Unsuccessful Object Replications from source zone threshold has been exceeded. The threshold is defined as 50 errors per 15min"
-          summary: "Critical: Unsuccessful Object Replications from Source Zone Threshold Exceeded"
+          description: "Critical: Unsuccessful replication log request errors threshold has been exceeded. The threshold is defined as 50 errors per 15min"
+          summary: "Critical: Unsuccessful Replication Log Request Errors Threshold Exceeded"
         expr: "increase(ceph_data_sync_from_zone_poll_errors[15m]) > 50"
         for: "5m"
         labels:
