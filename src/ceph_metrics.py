@@ -61,15 +61,22 @@ class CephMetricsEndpointProvider(prometheus_scrape.MetricsEndpointProvider):
 
     def _on_relation_changed(self, event):
         """Enable prometheus on relation change"""
-        if self._charm.unit.is_leader() and ceph_utils.is_bootstrapped():
-            logger.debug(
-                "is_leader and is_bootstrapped, running rel changed: %s", event
-            )
-            mgr_config_set_rbd_stats_pools()
-            ceph_utils.mgr_enable_module("prometheus")
-            logger.debug("module_enabled")
-            self.update_alert_rules()
-            super()._on_relation_changed(event)
+        if not self._charm.unit.is_leader():
+            return
+
+        if not ceph_utils.is_bootstrapped():
+            logger.debug("not bootstrapped, defer rel changed: %s", event)
+            event.defer()
+            return
+
+        logger.debug(
+            "is_leader and is_bootstrapped, running rel changed: %s", event
+        )
+        mgr_config_set_rbd_stats_pools()
+        ceph_utils.mgr_enable_module("prometheus")
+        logger.debug("module_enabled")
+        self.update_alert_rules()
+        super()._on_relation_changed(event)
 
     def _on_relation_departed(self, event):
         """Disable prometheus on depart of relation"""
