@@ -228,6 +228,8 @@ class CephMonCharm(ops_openstack.core.OSBaseCharm):
                              ops_actions.get_health.get_health_action)
         self._observe_action(self.on.get_erasure_profile_action,
                              ops_actions.get_erasure_profile.erasure_profile)
+        self._observe_action(self.on.list_entities_action,
+                             ops_actions.list_entities.list_entities)
 
         fw.observe(self.on.install, self.on_install)
         fw.observe(self.on.config_changed, self.on_config)

@@ -19,4 +19,5 @@ from . import (   # noqa: F401
     create_erasure_profile,
     get_health,
     get_erasure_profile,
+    list_entities,
 )

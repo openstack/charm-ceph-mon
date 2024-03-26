@@ -17,6 +17,7 @@ import subprocess
 
 import test_utils
 import ops_actions.copy_pool as copy_pool
+import ops_actions.list_entities as list_entities
 
 with mock.patch('charmhelpers.contrib.hardening.harden.harden') as mock_dec:
     mock_dec.side_effect = (lambda *dargs, **dkwargs: lambda f:
@@ -283,3 +284,26 @@ class GetErasureProfile(test_utils.CharmTestCase):
         event.set_results.assert_called_once_with((
             {"message": None}
         ))
+
+
+class ListEntities(test_utils.CharmTestCase):
+    """Run tests for action."""
+
+    def setUp(self):
+        self.harness = Harness(CephMonCharm)
+        self.harness.begin()
+        self.addCleanup(self.harness.cleanup)
+
+    @mock.patch.object(list_entities.subprocess, 'check_call')
+    def test_list_entities(self, check_call):
+        check_call.return_value = b"""
+client.admin
+  key: AQAOwwFmTR3TNxAAIsdYgastd0uKntPtEnoWug==
+mgr.0
+  key: AQAVwwFm/CmaJhAAdacns6DdFe4xZE1iwj8izg==
+"""
+        event = test_utils.MockActionEvent({})
+        self.harness.charm.on_list_entities_action(event)
+        event.set_results.assert_called_once_with(
+            {"message": "client.admin\nmgr.0"}
+        )
