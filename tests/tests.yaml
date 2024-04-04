@@ -39,3 +39,4 @@ tests:
   - zaza.openstack.charm_tests.ceph.tests.CephAuthTest
   - zaza.openstack.charm_tests.ceph.tests.CephMonActionsTest
   - zaza.openstack.charm_tests.ceph.mon.tests.CephPermissionUpgradeTest
+  - zaza.openstack.charm_tests.ceph.tests.CephMonKeyRotationTests

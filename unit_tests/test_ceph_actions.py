@@ -18,6 +18,7 @@ import subprocess
 import test_utils
 import ops_actions.copy_pool as copy_pool
 import ops_actions.list_entities as list_entities
+import ops_actions.rotate_key as rotate_key
 
 with mock.patch('charmhelpers.contrib.hardening.harden.harden') as mock_dec:
     mock_dec.side_effect = (lambda *dargs, **dkwargs: lambda f:
@@ -294,9 +295,9 @@ class ListEntities(test_utils.CharmTestCase):
         self.harness.begin()
         self.addCleanup(self.harness.cleanup)
 
-    @mock.patch.object(list_entities.subprocess, 'check_call')
-    def test_list_entities(self, check_call):
-        check_call.return_value = b"""
+    @mock.patch.object(list_entities.subprocess, 'check_output')
+    def test_list_entities(self, check_output):
+        check_output.return_value = b"""
 client.admin
   key: AQAOwwFmTR3TNxAAIsdYgastd0uKntPtEnoWug==
 mgr.0
@@ -307,3 +308,51 @@ mgr.0
         event.set_results.assert_called_once_with(
             {"message": "client.admin\nmgr.0"}
         )
+
+
+# Needs to be outside as the decorator wouldn't find it otherwise.
+MGR_KEYRING_FILE = """
+[mgr.host-1]
+  key = old-key
+"""
+
+
+class RotateKey(test_utils.CharmTestCase):
+    """Run tests for action."""
+
+    def setUp(self):
+        self.harness = Harness(CephMonCharm)
+        self.harness.begin()
+        self.addCleanup(self.harness.cleanup)
+
+    def test_invalid_entity(self):
+        event = test_utils.MockActionEvent({'entity': '???'})
+        self.harness.charm.on_rotate_key_action(event)
+        event.fail.assert_called_once()
+
+    def test_invalid_mgr(self):
+        event = test_utils.MockActionEvent({'entity': 'mgr-123'})
+        self.harness.charm.on_rotate_key_action(event)
+        event.fail.assert_called_once()
+
+    @mock.patch('builtins.open', new_callable=mock.mock_open,
+                read_data=MGR_KEYRING_FILE)
+    @mock.patch.object(rotate_key.systemd, 'service_restart')
+    @mock.patch.object(rotate_key.subprocess, 'check_output')
+    @mock.patch.object(rotate_key.os, 'listdir')
+    def test_rotate_mgr_key(self, listdir, check_output, service_restart,
+                            _open):
+        listdir.return_value = ['ceph-host-1']
+        check_output.return_value = b'[{"pending_key": "new-key"}]'
+
+        event = test_utils.MockActionEvent({'entity': 'mgr.host-1'})
+        self.harness.charm.on_rotate_key_action(event)
+
+        event.set_results.assert_called_with({'message': 'success'})
+        listdir.assert_called_once_with('/var/lib/ceph/mgr')
+        check_output.assert_called_once()
+        service_restart.assert_called_once_with('ceph-mgr@host-1.service')
+
+        calls = any(x for x in _open.mock_calls
+                    if any(p is not None and 'new-key' in p for p in x.args))
+        self.assertTrue(calls)

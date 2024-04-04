@@ -454,3 +454,10 @@ list-entities:
         - text
       default: text
       description: "The output format, either json, yaml or text (default)"
+rotate-key:
+  description: "Rotate the key of an entity in the Ceph cluster"
+  params:
+    entity:
+      type: string
+      description: The entity for which to rotate the key
+  required: [entity]

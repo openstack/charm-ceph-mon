@@ -31,7 +31,7 @@ def list_entities(event):
         # since it sometimes contain escaped strings that are incompatible
         # with python's json module. This method of fetching entities is
         # simple enough and portable across Ceph versions.
-        out = subprocess.check_call(['sudo', 'ceph', 'auth', 'ls'])
+        out = subprocess.check_output(['sudo', 'ceph', 'auth', 'ls'])
         ret = []
 
         for line in out.decode('utf-8').split('\n'):
