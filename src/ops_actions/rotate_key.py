@@ -75,7 +75,31 @@ def _restart_daemon(entity, event):
         raise
 
 
-def rotate_key(event) -> None:
+def _handle_rgw_key_rotation(entity, event, model):
+    rgw_name = entity[7:]   # Skip 'client.'
+    relations = model.relations.get('radosgw')
+    if not relations:
+        event.fail('No RadosGW relations found')
+        return
+
+    for relation in relations:
+        for unit in relation.units:
+            try:
+                data = relation.data
+                if data[unit]["key_name"] != rgw_name:
+                    continue
+            except KeyError:
+                logger.exception('key name not found in relation data bag')
+                continue
+
+            data[model.unit][rgw_name + "_key"] = _create_key(entity, event)
+            event.set_results({"message": "success"})
+            return
+
+    event.fail("Entity %s not found" % entity)
+
+
+def rotate_key(event, model=None) -> None:
     """Rotate the key of the specified entity."""
     entity = event.params.get("entity")
     if entity.startswith("mgr"):
@@ -99,5 +123,7 @@ def rotate_key(event) -> None:
         _replace_keyring_file(path, entity, key, event)
         _restart_daemon("ceph-mgr@%s.service" % entity[4:], event)
         event.set_results({"message": "success"})
+    elif entity.startswith('client.rgw.'):
+        _handle_rgw_key_rotation(entity, event, model)
     else:
         event.fail("Unknown entity: %s" % entity)

@@ -194,6 +194,11 @@ class CephMonCharm(ops_openstack.core.OSBaseCharm):
         for relation in self.model.relations['admin']:
             hooks.admin_relation_joined(str(relation.id))
 
+    def on_rotate_key_action(self, event):
+        ops_actions.rotate_key.rotate_key(
+            event, self.framework.model
+        )
+
     def __init__(self, *args):
         super().__init__(*args)
         self._stored.is_started = True
@@ -231,7 +236,7 @@ class CephMonCharm(ops_openstack.core.OSBaseCharm):
         self._observe_action(self.on.list_entities_action,
                              ops_actions.list_entities.list_entities)
         self._observe_action(self.on.rotate_key_action,
-                             ops_actions.rotate_key.rotate_key)
+                             self.on_rotate_key_action)
 
         fw.observe(self.on.install, self.on_install)
         fw.observe(self.on.config_changed, self.on_config)
