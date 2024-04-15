@@ -35,3 +35,4 @@ tests:
   # Tests from quincy.
   - zaza.openstack.charm_tests.ceph.tests.CephAuthTest
   - zaza.openstack.charm_tests.ceph.tests.CephMonActionsTest
+  - zaza.openstack.charm_tests.ceph.tests.CephMonKeyRotationTests

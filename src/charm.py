@@ -199,6 +199,11 @@ class CephMonCharm(ops_openstack.core.OSBaseCharm):
                 hooks.mds_relation_joined(
                     relid=str(relation.id), unit=unit.name)
 
+    def on_rotate_key_action(self, event):
+        ops_actions.rotate_key.rotate_key(
+            event, self.framework.model
+        )
+
     def __init__(self, *args):
         super().__init__(*args)
         self._stored.is_started = True
@@ -230,6 +235,10 @@ class CephMonCharm(ops_openstack.core.OSBaseCharm):
             ops_actions.create_erasure_profile.create_erasure_profile_action)
         self._observe_action(self.on.get_health_action,
                              ops_actions.get_health.get_health_action)
+        self._observe_action(self.on.list_entities_action,
+                             ops_actions.list_entities.list_entities)
+        self._observe_action(self.on.rotate_key_action,
+                             self.on_rotate_key_action)
 
         fw.observe(self.on.install, self.on_install)
         fw.observe(self.on.config_changed, self.on_config)
