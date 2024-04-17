@@ -206,6 +206,8 @@ def get_ceph_context():
 
     if config('prefer-ipv6'):
         dynamic_ipv6_address = get_ipv6_addr()[0]
+        cephcontext['ms_bind_ipv4'] = False
+        cephcontext['ms_bind_ipv6'] = True
         if not public_network:
             cephcontext['public_addr'] = dynamic_ipv6_address
         if not cluster_network:
