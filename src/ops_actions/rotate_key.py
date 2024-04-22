@@ -99,6 +99,34 @@ def _handle_rgw_key_rotation(entity, event, model):
     event.fail("Entity %s not found" % entity)
 
 
+def _find_mds_unit(relations, mds_name):
+    for relation in relations:
+        for unit in relation.units:
+            try:
+                if mds_name == relation.data[unit]['mds-name']:
+                    return relation.data
+            except KeyError:
+                logger.exception('mds name not found in relation data bag')
+
+
+def _handle_mds_key_rotation(entity, event, model):
+    mds_name = entity[4:]
+    relations = model.relations.get('mds')
+    if not relations:
+        event.fail('No mds relations found')
+        return
+
+    key_name = mds_name + '_mds_key'
+    bag = _find_mds_unit(relations, key_name)
+    if bag is None:
+        event.fail('No unit found for entity: %s' % entity)
+        return
+
+    pending_key = _create_key(entity, event)
+    bag[model.unit]['pending_key'] = json.dumps({mds_name: pending_key})
+    event.set_results({'message': 'success'})
+
+
 def rotate_key(event, model=None) -> None:
     """Rotate the key of the specified entity."""
     entity = event.params.get("entity")
@@ -125,5 +153,7 @@ def rotate_key(event, model=None) -> None:
         event.set_results({"message": "success"})
     elif entity.startswith('client.rgw.'):
         _handle_rgw_key_rotation(entity, event, model)
+    elif entity.startswith('mds.'):
+        _handle_mds_key_rotation(entity, event, model)
     else:
         event.fail("Unknown entity: %s" % entity)
