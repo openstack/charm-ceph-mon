@@ -116,14 +116,13 @@ def _handle_mds_key_rotation(entity, event, model):
         event.fail('No mds relations found')
         return
 
-    key_name = mds_name + '_mds_key'
-    bag = _find_mds_unit(relations, key_name)
+    bag = _find_mds_unit(relations, mds_name)
     if bag is None:
         event.fail('No unit found for entity: %s' % entity)
         return
 
     pending_key = _create_key(entity, event)
-    bag[model.unit]['pending_key'] = json.dumps({mds_name: pending_key})
+    bag[model.unit][mds_name + "_mds_key"] = pending_key
     event.set_results({'message': 'success'})
 
 
