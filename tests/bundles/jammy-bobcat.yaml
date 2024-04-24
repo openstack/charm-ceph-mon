@@ -77,11 +77,11 @@ applications:
       - '3'
       - '4'
       - '5'
-    channel: latest/edge
+    channel: reef/edge
 
   ceph-mon:
     charm: ch:ceph-mon
-    channel: latest/edge
+    channel: reef/edge
     num_units: 3
     options:
       source: *openstack-origin
@@ -96,7 +96,7 @@ applications:
     num_units: 1
     options:
       source: *openstack-origin
-    channel: latest/edge
+    channel: reef/edge
     to: 
     - '17'
 
@@ -108,7 +108,7 @@ applications:
       openstack-origin: *openstack-origin
     to:
       - '10'
-    channel: latest/edge
+    channel: 2023.2/edge
 
   nova-compute:
     charm: ch:nova-compute
@@ -118,7 +118,7 @@ applications:
       libvirt-image-backend: rbd
     to:
       - '11'
-    channel: latest/edge
+    channel: 2023.2/edge
 
   glance:
     expose: True
@@ -128,7 +128,7 @@ applications:
       openstack-origin: *openstack-origin
     to:
       - '12'
-    channel: latest/edge
+    channel: 2023.2/edge
 
   cinder:
     expose: True
@@ -140,11 +140,11 @@ applications:
       openstack-origin: *openstack-origin
     to:
       - '13'
-    channel: latest/edge
+    channel: 2023.2/edge
 
   cinder-ceph:
     charm: ch:cinder-ceph
-    channel: latest/edge
+    channel: 2023.2/edge
 
   nova-cloud-controller:
     expose: True
@@ -154,7 +154,7 @@ applications:
       openstack-origin: *openstack-origin
     to:
       - '14'
-    channel: latest/edge
+    channel: 2023.2/edge
 
   placement:
     charm: ch:placement
@@ -163,7 +163,7 @@ applications:
       openstack-origin: *openstack-origin
     to:
       - '15'
-    channel: latest/edge
+    channel: 2023.2/edge
 
   prometheus2:
     charm: ch:prometheus2
