@@ -199,6 +199,42 @@ class CephHooksTestCase(test_utils.CharmTestCase):
                     'use_syslog': 'true'}
         self.assertEqual(ctxt, expected)
 
+    @patch.object(ceph_hooks, 'get_rbd_features', return_value=None)
+    @patch.object(ceph_hooks, 'get_ipv6_addr',
+                  lambda **kwargs: ["2a01:348:2f4:0:685e:5748:ae62:209f"])
+    @patch.object(ceph_hooks, 'cmp_pkgrevno', lambda *args: 1)
+    @patch.object(ceph_hooks, 'get_mon_hosts',
+                  lambda *args: ['2a01:348:2f4:0:685e:5748:ae62:209f',
+                                 '2a01:348:2f4:0:685e:5748:ae62:20a0'])
+    @patch.object(ceph_hooks, 'get_networks', lambda *args: "")
+    @patch.object(ceph_hooks, 'leader_get', lambda *args: '1234')
+    @patch.object(ceph, 'config')
+    @patch.object(ceph_hooks, 'config')
+    def test_get_ceph_context_prefer_ipv6(self, mock_config, mock_config2,
+                                          _get_rbd_features):
+        config = copy.deepcopy(CHARM_CONFIG)
+        config['prefer-ipv6'] = True
+        mock_config.side_effect = lambda key: config[key]
+        mock_config2.side_effect = lambda key: config[key]
+        ctxt = ceph_hooks.get_ceph_context()
+        expected = {'auth_supported': 'cephx',
+                    'ceph_cluster_network': '',
+                    'ceph_public_network': '',
+                    'cluster_addr': '2a01:348:2f4:0:685e:5748:ae62:209f',
+                    'dio': 'true',
+                    'fsid': '1234',
+                    'loglevel': 1,
+                    'mon_hosts': '2a01:348:2f4:0:685e:5748:ae62:209f '
+                                 '2a01:348:2f4:0:685e:5748:ae62:20a0',
+                    'mon_data_avail_warn': 30,
+                    'mon_data_avail_crit': 5,
+                    'old_auth': False,
+                    'public_addr': '2a01:348:2f4:0:685e:5748:ae62:209f',
+                    'use_syslog': 'true',
+                    'ms_bind_ipv4': False,
+                    'ms_bind_ipv6': True}
+        self.assertEqual(ctxt, expected)
+
     @patch.object(ceph_hooks, 'config')
     def test_nrpe_dependency_installed(self, mock_config):
         config = copy.deepcopy(CHARM_CONFIG)
