@@ -200,8 +200,15 @@ class CephHooksTestCase(test_utils.CharmTestCase):
         self.assertEqual(ctxt, expected)
 
     @patch.object(ceph_hooks, 'get_rbd_features', return_value=None)
+    # Provide multiple local addresses,
+    # we'll check that the right (second) one is used
     @patch.object(ceph_hooks, 'get_ipv6_addr',
-                  lambda **kwargs: ["2a01:348:2f4:0:685e:5748:ae62:209f"])
+                  lambda **kwargs: ["2a01:348:2f4:0:bad:bad:bad:bad",
+                                    "2a01:348:2f4:0:685e:5748:ae62:209f"])
+    @patch.object(ceph_hooks, 'get_public_addr',
+                  lambda *args: "2a01:348:2f4:0:685e:5748:ae62:209f")
+    @patch.object(ceph_hooks, 'get_cluster_addr',
+                  lambda *args: "2a01:348:2f4:0:685e:5748:ae62:209f")
     @patch.object(ceph_hooks, 'cmp_pkgrevno', lambda *args: 1)
     @patch.object(ceph_hooks, 'get_mon_hosts',
                   lambda *args: ['2a01:348:2f4:0:685e:5748:ae62:209f',
