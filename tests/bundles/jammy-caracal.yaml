@@ -1,24 +1,20 @@
 variables:
-  openstack-origin: &openstack-origin distro
-  # use infra (mysql, rabbit) from lts for stability
-  infra-series: &infra-series jammy
+  openstack-origin: &openstack-origin cloud:jammy-caracal
 
-series: lunar
+local_overlay_enabled: False
+
+series: jammy
 
 comment:
 - 'machines section to decide order of deployment. database sooner = faster'
 machines:
   '0':
     constraints: mem=3072M
-    series: *infra-series
   '1':
     constraints: mem=3072M
-    series: *infra-series
   '2':
     constraints: mem=3072M
-    series: *infra-series
   '3':
-    series: *infra-series
   '4':
   '5':
   '6':
@@ -33,7 +29,6 @@ machines:
   '15':
   '16':
   '17':
-    series: focal
 
 
 applications:
@@ -67,7 +62,7 @@ applications:
     charm: ch:rabbitmq-server
     num_units: 1
     to:
-      - '3'
+      - '9'
     channel: 3.9/edge
 
   ceph-osd:
@@ -79,31 +74,31 @@ applications:
       source: *openstack-origin
       osd-devices: '/dev/test-non-existent'
     to:
+      - '3'
       - '4'
       - '5'
-      - '6'
-    channel: quincy/edge
+    channel: latest/edge
 
   ceph-mon:
     charm: ch:ceph-mon
-    channel: quincy/edge
+    channel: latest/edge
     num_units: 3
     options:
       source: *openstack-origin
       monitor-count: '3'
     to:
+      - '6'
       - '7'
       - '8'
-      - '9'
 
   ceph-fs:
     charm: ch:ceph-fs
     num_units: 1
     options:
       source: *openstack-origin
-    channel: quincy/edge
+    channel: latest/edge
     to: 
-    - '10'
+    - '17'
 
   keystone:
     expose: True
@@ -112,8 +107,8 @@ applications:
     options:
       openstack-origin: *openstack-origin
     to:
-      - '11'
-    channel: 2023.1/edge
+      - '10'
+    channel: latest/edge
 
   nova-compute:
     charm: ch:nova-compute
@@ -122,8 +117,8 @@ applications:
       openstack-origin: *openstack-origin
       libvirt-image-backend: rbd
     to:
-      - '12'
-    channel: 2023.1/edge
+      - '11'
+    channel: latest/edge
 
   glance:
     expose: True
@@ -132,8 +127,8 @@ applications:
     options:
       openstack-origin: *openstack-origin
     to:
-      - '13'
-    channel: 2023.1/edge
+      - '12'
+    channel: latest/edge
 
   cinder:
     expose: True
@@ -144,12 +139,12 @@ applications:
       glance-api-version: '2'
       openstack-origin: *openstack-origin
     to:
-      - '14'
-    channel: 2023.1/edge
+      - '13'
+    channel: latest/edge
 
   cinder-ceph:
     charm: ch:cinder-ceph
-    channel: 2023.1/edge
+    channel: latest/edge
 
   nova-cloud-controller:
     expose: True
@@ -158,8 +153,8 @@ applications:
     options:
       openstack-origin: *openstack-origin
     to:
-      - '15'
-    channel: 2023.1/edge
+      - '14'
+    channel: latest/edge
 
   placement:
     charm: ch:placement
@@ -167,15 +162,14 @@ applications:
     options:
       openstack-origin: *openstack-origin
     to:
-      - '16'
-    channel: 2023.1/edge
+      - '15'
+    channel: latest/edge
 
   prometheus2:
     charm: ch:prometheus2
     num_units: 1
-    series: focal
     to:
-      - '17'
+      - '16'
 
 relations:
   - - 'nova-compute:amqp'

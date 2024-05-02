@@ -13,8 +13,6 @@ tags:
 series:
 - focal
 - jammy
-- lunar
-- mantic
 peers:
   mon:
     interface: ceph
@@ -50,4 +48,4 @@ resources:
   alert-rules:
     type: file
     filename: alert.yaml.rules
-    description: "Alerting rules"
+    description: Alerting rules
