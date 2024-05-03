@@ -18,4 +18,6 @@ from . import (   # noqa: F401
     create_crush_rule,
     create_erasure_profile,
     get_health,
+    list_entities,
+    rotate_key,
 )

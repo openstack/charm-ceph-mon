@@ -17,6 +17,8 @@ import subprocess
 
 import test_utils
 import ops_actions.copy_pool as copy_pool
+import ops_actions.list_entities as list_entities
+import ops_actions.rotate_key as rotate_key
 
 with mock.patch('charmhelpers.contrib.hardening.harden.harden') as mock_dec:
     mock_dec.side_effect = (lambda *dargs, **dkwargs: lambda f:
@@ -256,3 +258,121 @@ class GetHealthTestCase(test_utils.CharmTestCase):
         event.fail.assert_called_once_with(
             'ceph health failed with message: '
             "Command 'test' returned non-zero exit status 1.")
+
+
+class ListEntities(test_utils.CharmTestCase):
+    """Run tests for action."""
+
+    def setUp(self):
+        self.harness = Harness(CephMonCharm)
+        self.harness.begin()
+        self.addCleanup(self.harness.cleanup)
+
+    @mock.patch.object(list_entities.subprocess, 'check_output')
+    def test_list_entities(self, check_output):
+        check_output.return_value = b"""
+client.admin
+  key: AQAOwwFmTR3TNxAAIsdYgastd0uKntPtEnoWug==
+mgr.0
+  key: AQAVwwFm/CmaJhAAdacns6DdFe4xZE1iwj8izg==
+"""
+        event = test_utils.MockActionEvent({})
+        self.harness.charm.on_list_entities_action(event)
+        event.set_results.assert_called_once_with(
+            {"message": "client.admin\nmgr.0"}
+        )
+
+
+# Needs to be outside as the decorator wouldn't find it otherwise.
+MGR_KEYRING_FILE = """
+[mgr.host-1]
+  key = old-key
+"""
+
+
+class RotateKey(test_utils.CharmTestCase):
+    """Run tests for action."""
+
+    def setUp(self):
+        self.harness = Harness(CephMonCharm)
+        self.harness.begin()
+        self.addCleanup(self.harness.cleanup)
+
+    def test_invalid_entity(self):
+        event = test_utils.MockActionEvent({'entity': '???'})
+        self.harness.charm.on_rotate_key_action(event)
+        event.fail.assert_called_once()
+
+    def test_invalid_mgr(self):
+        event = test_utils.MockActionEvent({'entity': 'mgr-123'})
+        self.harness.charm.on_rotate_key_action(event)
+        event.fail.assert_called_once()
+
+    @mock.patch('builtins.open', new_callable=mock.mock_open,
+                read_data=MGR_KEYRING_FILE)
+    @mock.patch.object(rotate_key.systemd, 'service_restart')
+    @mock.patch.object(rotate_key.subprocess, 'check_output')
+    @mock.patch.object(rotate_key.os, 'listdir')
+    def test_rotate_mgr_key(self, listdir, check_output, service_restart,
+                            _open):
+        listdir.return_value = ['ceph-host-1']
+        check_output.return_value = b'[{"pending_key": "new-key"}]'
+
+        event = test_utils.MockActionEvent({'entity': 'mgr.host-1'})
+        self.harness.charm.on_rotate_key_action(event)
+
+        event.set_results.assert_called_with({'message': 'success'})
+        listdir.assert_called_once_with('/var/lib/ceph/mgr')
+        check_output.assert_called_once()
+        service_restart.assert_called_once_with('ceph-mgr@host-1.service')
+
+        calls = any(x for x in _open.mock_calls
+                    if any(p is not None and 'new-key' in p for p in x.args))
+        self.assertTrue(calls)
+
+    @mock.patch.object(rotate_key.subprocess, "check_output")
+    def test_rotate_osd_key(self, output):
+        class MockUnit:
+            def __init__(self, name):
+                self.name = name
+
+        bag = {}
+        osd_rel = mock.MagicMock(
+            units=[MockUnit("ceph-osd/0"), MockUnit("ceph-osd/1")],
+            data={1: bag}
+        )
+        model = mock.MagicMock(
+            unit=1,
+            relations={"osd": [osd_rel]}
+        )
+
+        def _check_output(args):
+            if "dump" in args:
+                return b'''{"osds":[{"osd":1,"public_addr":"1.1.1.1"},
+                                    {"osd":2,"public_addr":"1.1.1.2"}]}'''
+            elif "relation-get" in args:
+                if args[-1] == "ceph-osd/0":
+                    return b'1.1.1.1'
+                else:
+                    return b'1.1.1.2'
+            elif "get-or-create-pending" in args:
+                return b'[{"pending_key":"new-key"}]'
+            elif "ls" in args:
+                return b'1\n2'
+
+        output.side_effect = _check_output
+        event = test_utils.MockActionEvent({"entity": "osd.2"})
+        rotate_key.rotate_key(event, model=model)
+
+        event.set_results.assert_called_with({"message": "success"})
+        data = rotate_key.json.loads(bag["pending_key"])
+        self.assertEqual(data, {"2": "new-key"})
+
+        output.reset_mock()
+        event = test_utils.MockActionEvent({"entity": "osd"})
+        bag.clear()
+        rotate_key.rotate_key(event, model=model)
+
+        event.set_results.assert_called_with({"message": "success"})
+        data = rotate_key.json.loads(bag["pending_key"])
+        self.assertEqual(data, {"1": "new-key", "2": "new-key"})
