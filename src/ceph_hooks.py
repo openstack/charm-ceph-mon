@@ -871,6 +871,7 @@ def osd_relation(relid=None, unit=None, reprocess_broker_requests=False):
         log('mon cluster in quorum - providing fsid & keys')
         public_addr = get_public_addr()
         data = {
+            'pending_key': '',
             'fsid': leader_get('fsid'),
             'osd_bootstrap_key': ceph.get_osd_bootstrap_key(),
             'auth': 'cephx',

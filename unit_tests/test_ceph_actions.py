@@ -316,6 +316,21 @@ MGR_KEYRING_FILE = """
   key = old-key
 """
 
+OSD_DUMP = b"""
+{
+    "osds": [
+        {
+            "osd": 0,
+            "public_addr": "10.5.2.40:6801/13869"
+        },
+        {
+            "osd": 1,
+            "public_addr": "10.5.0.160:6801/9017"
+        }
+    ]
+}
+"""
+
 
 class RotateKey(test_utils.CharmTestCase):
     """Run tests for action."""
@@ -346,7 +361,7 @@ class RotateKey(test_utils.CharmTestCase):
         check_output.return_value = b'[{"pending_key": "new-key"}]'
 
         event = test_utils.MockActionEvent({'entity': 'mgr.host-1'})
-        self.harness.charm.on_rotate_key_action(event)
+        rotate_key.rotate_key(event)
 
         event.set_results.assert_called_with({'message': 'success'})
         listdir.assert_called_once_with('/var/lib/ceph/mgr')
@@ -356,3 +371,35 @@ class RotateKey(test_utils.CharmTestCase):
         calls = any(x for x in _open.mock_calls
                     if any(p is not None and 'new-key' in p for p in x.args))
         self.assertTrue(calls)
+
+    @mock.patch.object(rotate_key, '_create_key')
+    @mock.patch.object(rotate_key.subprocess, 'check_output')
+    def test_rotate_osd_key(self, check_output, create_key):
+        def _check_output_inner(args):
+            if args == ['sudo', 'ceph', 'osd', 'dump', '--format=json']:
+                return OSD_DUMP
+            elif args[5] == 'ceph-osd/0':
+                return b'10.5.2.40'
+            else:
+                return b'10.5.0.160'
+
+        check_output.side_effect = _check_output_inner
+        create_key.return_value = 'some-key'
+
+        unit0 = mock.MagicMock()
+        unit0.name = 'ceph-osd/0'
+        unit1 = mock.MagicMock()
+        unit1.name = 'ceph-osd/1'
+
+        relations = mock.MagicMock()
+        relations.units = [unit0, unit1]
+        relations.data = {'ceph-mon/0': {}}
+
+        model = mock.MagicMock()
+        model.relations = {'osd': [relations]}
+        model.unit = 'ceph-mon/0'
+
+        event = test_utils.MockActionEvent({'entity': 'osd.1'})
+        rotate_key.rotate_key(event, model)
+        self.assertEqual(relations.data['ceph-mon/0'],
+                         {'pending_key': '{"1": "some-key"}'})
