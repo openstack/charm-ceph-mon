@@ -53,3 +53,6 @@ croniter            # needed for charm-rabbitmq-server unit tests
 # icey: pyopenssl 22 introduces a requirement on newer OpenSSL which causes test
 # failures. Pin pyopenssl to resolve the failure.
 pyopenssl<=22.0.0
+
+pydantic < 2
+cosl
