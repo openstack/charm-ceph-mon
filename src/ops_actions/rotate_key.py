@@ -99,6 +99,138 @@ def _handle_rgw_key_rotation(entity, event, model):
     event.fail("Entity %s not found" % entity)
 
 
+def _find_mds_unit(relations, mds_name):
+    for relation in relations:
+        for unit in relation.units:
+            try:
+                if mds_name == relation.data[unit]['mds-name']:
+                    return relation.data
+            except KeyError:
+                logger.exception('mds name not found in relation data bag')
+
+
+def _handle_mds_key_rotation(entity, event, model):
+    mds_name = entity[4:]
+    relations = model.relations.get('mds')
+    if not relations:
+        event.fail('No mds relations found')
+        return
+
+    bag = _find_mds_unit(relations, mds_name)
+    if bag is None:
+        event.fail('No unit found for entity: %s' % entity)
+        return
+
+    pending_key = _create_key(entity, event)
+    bag[model.unit][mds_name + "_mds_key"] = pending_key
+    event.set_results({'message': 'success'})
+
+
+def _get_osd_tree():
+    out = subprocess.check_output(["sudo", "ceph", "osd", "dump",
+                                   "--format=json"])
+    return json.loads(out.decode("utf8")).get("osds", ())
+
+
+def _clean_address(addr):
+    ix = addr.find(":")
+    return addr if ix < 0 else addr[0:ix]
+
+
+def _get_osd_addrs(osd_id, tree=None):
+    if tree is None:
+        tree = _get_osd_tree()
+
+    for osd in tree:
+        if osd.get("osd") != osd_id:
+            continue
+
+        return [_clean_address(osd[x])
+                for x in ("public_addr", "cluster_addr")
+                if x in osd]
+
+
+def _get_unit_addr(unit, rel_id):
+    out = subprocess.check_output(["relation-get", "--format=json",
+                                   "-r", str(rel_id), "private-address", unit])
+    return out.decode("utf8").replace('"', '').strip()
+
+
+def _find_osd_unit(relations, model, osd_id, tree):
+    addrs = _get_osd_addrs(osd_id, tree)
+    if not addrs:
+        return None
+
+    for relation in relations:
+        for unit in relation.units:
+            if _get_unit_addr(unit.name, relation.id) in addrs:
+                return relation.data[model.unit]
+
+
+def _handle_osd_key_rotation(entity, event, model, tree=None):
+    osd_rels = model.relations.get("osd")
+    if not osd_rels:
+        event.fail("No OSD relations found")
+        return
+
+    if tree is None:
+        tree = _get_osd_tree()
+
+    osd_id = int(entity[4:])
+    bag = _find_osd_unit(osd_rels, model, osd_id, tree)
+    if bag is not None:
+        key = _create_key(entity, event)
+        bag["pending_key"] = json.dumps({osd_id: key})
+        event.set_results({"message": "success"})
+    else:
+        event.fail("No OSD matching entity %s found" % entity)
+
+
+def _add_osd_rotation(rotations, new_bag, osd_id, new_key):
+    # NOTE(lmlg): We can't use sets or dicts for relation databags, as they
+    # are mutable and don't implement a __hash__ method. So we use a simple
+    # (bag, dict) array to map the rotations.
+    elem = {osd_id: new_key}
+    for bag, data in rotations:
+        if bag is new_bag:
+            data.update(elem)
+            return
+
+    rotations.append((new_bag, elem))
+
+
+def _get_osd_ids():
+    ret = subprocess.check_output(["sudo", "ceph", "osd", "ls"])
+    return ret.decode("utf8").split("\n")
+
+
+def _rotate_all_osds(event, model):
+    tree = _get_osd_tree()
+    osd_rels = model.relations.get("osd")
+    ret = []
+
+    if not osd_rels:
+        event.fail("No OSD relations found")
+        return
+
+    for osd_id in _get_osd_ids():
+        osd_id = osd_id.strip()
+        if not osd_id:
+            continue
+
+        bag = _find_osd_unit(osd_rels, model, int(osd_id), tree)
+        if bag is None:
+            continue
+
+        key = _create_key("osd." + osd_id, event)
+        _add_osd_rotation(ret, bag, osd_id, key)
+
+    for bag, elem in ret:
+        bag["pending_key"] = json.dumps(elem)
+
+    event.set_results({"message": "success"})
+
+
 def rotate_key(event, model=None) -> None:
     """Rotate the key of the specified entity."""
     entity = event.params.get("entity")
@@ -123,7 +255,13 @@ def rotate_key(event, model=None) -> None:
         _replace_keyring_file(path, entity, key, event)
         _restart_daemon("ceph-mgr@%s.service" % entity[4:], event)
         event.set_results({"message": "success"})
-    elif entity.startswith('client.rgw.'):
+    elif entity.startswith("client.rgw."):
         _handle_rgw_key_rotation(entity, event, model)
+    elif entity.startswith('mds.'):
+        _handle_mds_key_rotation(entity, event, model)
+    elif entity == "osd":
+        _rotate_all_osds(event, model)
+    elif entity.startswith("osd."):
+        _handle_osd_key_rotation(entity, event, model)
     else:
         event.fail("Unknown entity: %s" % entity)
