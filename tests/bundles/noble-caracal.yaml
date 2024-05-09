@@ -1,7 +1,9 @@
 variables:
-  openstack-origin: &openstack-origin cloud:focal-yoga
+  openstack-origin: &openstack-origin distro
 
-series: focal
+local_overlay_enabled: False
+
+series: noble
 
 comment:
 - 'machines section to decide order of deployment. database sooner = faster'
@@ -33,30 +35,35 @@ applications:
 
   keystone-mysql-router:
     charm: ch:mysql-router
-    channel: 8.0.19/edge
+    channel: 8.0/edge
   glance-mysql-router:
     charm: ch:mysql-router
-    channel: 8.0.19/edge
+    channel: 8.0/edge
   cinder-mysql-router:
     charm: ch:mysql-router
-    channel: 8.0.19/edge
+    channel: 8.0/edge
   nova-cloud-controller-mysql-router:
     charm: ch:mysql-router
-    channel: 8.0.19/edge
+    channel: 8.0/edge
   placement-mysql-router:
     charm: ch:mysql-router
-    channel: 8.0.19/edge
+    channel: 8.0/edge
 
   mysql-innodb-cluster:
     charm: ch:mysql-innodb-cluster
     num_units: 3
-    options:
-      source: *openstack-origin
     to:
       - '0'
       - '1'
       - '2'
-    channel: 8.0.19/edge
+    channel: 8.0/edge
+
+  rabbitmq-server:
+    charm: ch:rabbitmq-server
+    num_units: 1
+    to:
+      - '9'
+    channel: 3.9/edge
 
   ceph-osd:
     charm: ch:ceph-osd
@@ -70,10 +77,11 @@ applications:
       - '3'
       - '4'
       - '5'
-    channel: quincy/edge
+    channel: latest/edge
 
   ceph-mon:
-    charm: ../../ceph-mon.charm
+    charm: ch:ceph-mon
+    channel: latest/edge
     num_units: 3
     options:
       source: *openstack-origin
@@ -88,18 +96,9 @@ applications:
     num_units: 1
     options:
       source: *openstack-origin
-    channel: quincy/edge
+    channel: latest/edge
     to: 
     - '17'
-
-  rabbitmq-server:
-    charm: ch:rabbitmq-server
-    num_units: 1
-    options:
-      source: *openstack-origin
-    to:
-      - '9'
-    channel: 3.9/edge
 
   keystone:
     expose: True
@@ -109,7 +108,7 @@ applications:
       openstack-origin: *openstack-origin
     to:
       - '10'
-    channel: yoga/edge
+    channel: latest/edge
 
   nova-compute:
     charm: ch:nova-compute
@@ -119,7 +118,7 @@ applications:
       libvirt-image-backend: rbd
     to:
       - '11'
-    channel: yoga/edge
+    channel: latest/edge
 
   glance:
     expose: True
@@ -129,7 +128,7 @@ applications:
       openstack-origin: *openstack-origin
     to:
       - '12'
-    channel: yoga/edge
+    channel: latest/edge
 
   cinder:
     expose: True
@@ -141,11 +140,11 @@ applications:
       openstack-origin: *openstack-origin
     to:
       - '13'
-    channel: yoga/edge
+    channel: latest/edge
 
   cinder-ceph:
     charm: ch:cinder-ceph
-    channel: yoga/edge
+    channel: latest/edge
 
   nova-cloud-controller:
     expose: True
@@ -155,7 +154,7 @@ applications:
       openstack-origin: *openstack-origin
     to:
       - '14'
-    channel: yoga/edge
+    channel: latest/edge
 
   placement:
     charm: ch:placement
@@ -164,7 +163,7 @@ applications:
       openstack-origin: *openstack-origin
     to:
       - '15'
-    channel: yoga/edge
+    channel: latest/edge
 
   prometheus2:
     charm: ch:prometheus2

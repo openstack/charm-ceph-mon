@@ -1,6 +1,5 @@
 - project:
     templates:
-      - charm-unit-jobs-py38
       - charm-unit-jobs-py310
       - charm-functional-jobs
     vars:
@@ -8,15 +7,3 @@
       charm_build_name: ceph-mon
       build_type: charmcraft
       charmcraft_channel: 2.x/stable
-    check:
-      jobs:
-        - new-install-focal-yoga
-- job:
-    name: new-install-focal-yoga
-    parent: func-target
-    dependencies:
-      - osci-lint
-      - charm-build
-      - tox-py38
-    vars:
-      tox_extra_args: '-- install:local-focal-yoga'

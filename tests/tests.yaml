@@ -1,14 +1,13 @@
 charm_name: ceph-mon
 
 gate_bundles:
-  - focal-xena
-  - focal-yoga
   - jammy-yoga
   - jammy-bobcat
   - jammy-caracal
+  - noble-caracal
 
 smoke_bundles:
-  - focal-yoga
+  - jammy-caracal
 
 configure:
   - install:

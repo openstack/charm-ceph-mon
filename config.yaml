@@ -10,7 +10,7 @@ options:
       If set to True, supporting services will log to syslog.
   source:
     type: string
-    default: bobcat
+    default: caracal
     description: |
       Optional configuration to support use of additional sources such as:
       .
