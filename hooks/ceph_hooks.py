@@ -116,6 +116,19 @@ STATUS_FILE = '/var/lib/nagios/cat-ceph-status.txt'
 STATUS_CRONFILE = '/etc/cron.d/cat-ceph-health'
 
 
+def get_current_ceph_version():
+    try:
+        out = subprocess.check_output(['ceph-mon', '-v']).decode('utf-8')
+    except subprocess.CalledProcessError as exc:
+        log(("failed to get ceph version: %s. check that the ceph-mon "
+            "binary is installed and runs correctly") % str(exc),
+            level=ERROR)
+        return ''
+
+    # ceph version X.Y.Z (HASH) version-name (stable)
+    return out.split()[4]
+
+
 def check_for_upgrade():
     if not ceph.is_bootstrapped():
         log("Ceph is not bootstrapped, skipping upgrade checks.")
@@ -124,9 +137,21 @@ def check_for_upgrade():
     c = hookenv.config()
     old_version = ceph.resolve_ceph_version(c.previous('source') or
                                             'distro')
+
+    if not old_version:
+        old_version = get_current_ceph_version()
+        if not old_version:
+            log(("failed to get ceph version. check that the ceph-mon "
+                 "binary is installed and runs correctly"), level=ERROR)
+            return
+
     log('old_version: {}'.format(old_version))
     # Strip all whitespace
     new_version = ceph.resolve_ceph_version(hookenv.config('source'))
+    if not new_version:
+        log(("new version not found. make sure the 'source' option has "
+             "been set and try again (using 'distro' may help"), level=WARNING)
+        return
 
     old_version_os = get_os_codename_install_source(c.previous('source') or
                                                     'distro')
@@ -141,6 +166,8 @@ def check_for_upgrade():
         ceph.roll_monitor_cluster(new_version=new_version,
                                   upgrade_key='admin')
     elif (old_version == new_version and
+          old_version is not None and
+          new_version is not None and
           old_version_os < new_version_os):
         # See LP: #1778823
         add_source(hookenv.config('source'), hookenv.config('key'))
