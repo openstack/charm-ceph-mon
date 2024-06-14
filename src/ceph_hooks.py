@@ -205,13 +205,33 @@ def get_ceph_context():
     }
 
     if config('prefer-ipv6'):
-        dynamic_ipv6_address = get_ipv6_addr()[0]
         cephcontext['ms_bind_ipv4'] = False
         cephcontext['ms_bind_ipv6'] = True
+
+        local_addresses = get_ipv6_addr(dynamic_only=False)
+        public_addr = get_public_addr()
+        cluster_addr = get_cluster_addr()
+        # try binding to the address that juju will pass to other charms
+        if public_addr not in local_addresses:
+            log(f"Couldn't find a match for our assigned "
+                f"public ip {public_addr} "
+                f"out of {local_addresses}, "
+                f"using default {local_addresses[0]}",
+                level=WARNING)
+            public_addr = local_addresses[0]
+
+        if cluster_addr not in local_addresses:
+            log(f"Couldn't find a match for our assigned "
+                f"cluster ip {cluster_addr} "
+                f"out of {local_addresses}, "
+                f"using default {local_addresses[0]}",
+                level=WARNING)
+            cluster_addr = local_addresses[0]
+
         if not public_network:
-            cephcontext['public_addr'] = dynamic_ipv6_address
+            cephcontext['public_addr'] = public_addr
         if not cluster_network:
-            cephcontext['cluster_addr'] = dynamic_ipv6_address
+            cephcontext['cluster_addr'] = cluster_addr
     else:
         cephcontext['public_addr'] = get_public_addr()
         cephcontext['cluster_addr'] = get_cluster_addr()
