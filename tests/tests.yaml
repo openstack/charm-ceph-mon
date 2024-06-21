@@ -4,7 +4,6 @@ gate_bundles:
   - jammy-yoga
   - jammy-bobcat
   - jammy-caracal
-  - noble-caracal
 
 smoke_bundles:
   - jammy-caracal
