@@ -35,19 +35,19 @@ applications:
 
   keystone-mysql-router:
     charm: ch:mysql-router
-    channel: 8.0/edge
+    channel: latest/edge
   glance-mysql-router:
     charm: ch:mysql-router
-    channel: 8.0/edge
+    channel: latest/edge
   cinder-mysql-router:
     charm: ch:mysql-router
-    channel: 8.0/edge
+    channel: latest/edge
   nova-cloud-controller-mysql-router:
     charm: ch:mysql-router
-    channel: 8.0/edge
+    channel: latest/edge
   placement-mysql-router:
     charm: ch:mysql-router
-    channel: 8.0/edge
+    channel: latest/edge
 
   mysql-innodb-cluster:
     charm: ch:mysql-innodb-cluster
@@ -56,14 +56,14 @@ applications:
       - '0'
       - '1'
       - '2'
-    channel: 8.0/edge
+    channel: latest/edge
 
   rabbitmq-server:
     charm: ch:rabbitmq-server
     num_units: 1
     to:
       - '9'
-    channel: 3.9/edge
+    channel: latest/edge
 
   ceph-osd:
     charm: ch:ceph-osd
@@ -167,6 +167,7 @@ applications:
 
   prometheus2:
     charm: ch:prometheus2
+    series: jammy
     num_units: 1
     to:
       - '16'
