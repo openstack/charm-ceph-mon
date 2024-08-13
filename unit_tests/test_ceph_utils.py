@@ -78,7 +78,7 @@ class CephUtilsTestCase(test_utils.CharmTestCase):
             {'a': 'b',
              'rbd_default_features': '61',
              'c': 'd'})
-        self.assertEquals(
+        self.assertEqual(
             utils.get_default_rbd_features(),
             61)
         _check_output.assert_called_once_with(
@@ -101,13 +101,13 @@ class CephUtilsTestCase(test_utils.CharmTestCase):
                               _get_default_rbd_features):
         _config.side_effect = \
             lambda key: {'default-rbd-features': 42}.get(key, None)
-        self.assertEquals(utils.get_rbd_features(), 42)
+        self.assertEqual(utils.get_rbd_features(), 42)
         _has_rbd_mirrors.return_value = True
         _get_default_rbd_features.return_value = 61
         _config.side_effect = lambda key: {}.get(key, None)
-        self.assertEquals(utils.get_rbd_features(), 125)
+        self.assertEqual(utils.get_rbd_features(), 125)
         _has_rbd_mirrors.return_value = False
-        self.assertEquals(utils.get_rbd_features(), None)
+        self.assertEqual(utils.get_rbd_features(), None)
 
     @mock.patch.object(utils, '_is_required_osd_release')
     @mock.patch.object(utils, '_all_ceph_versions_same')
@@ -190,7 +190,7 @@ class CephUtilsTestCase(test_utils.CharmTestCase):
         self.assertFalse(
             return_bool,
             msg='all_ceph_versions_same returned True but should be False')
-        self.assertEquals(log.call_count, 2)
+        self.assertEqual(log.call_count, 2)
 
     @mock.patch.object(utils.subprocess, 'check_output')
     @mock.patch.object(utils.json, 'loads')
@@ -208,7 +208,7 @@ class CephUtilsTestCase(test_utils.CharmTestCase):
         self.assertFalse(
             return_bool,
             msg='all_ceph_versions_same returned True but should be False')
-        self.assertEquals(log.call_count, 2)
+        self.assertEqual(log.call_count, 2)
 
     @mock.patch.object(utils.subprocess, 'check_output')
     @mock.patch.object(utils, 'log')
@@ -241,9 +241,10 @@ class CephUtilsTestCase(test_utils.CharmTestCase):
         release = 'luminous'
         utils._set_require_osd_release(release)
         expected_call = mock.call(
-            ['ceph', 'osd', 'require-osd-release', release]
+            ['ceph', 'osd', 'require-osd-release', release,
+             '--yes-i-really-mean-it']
         )
-        check_call.has_calls(expected_call)
+        check_call.assert_has_calls([expected_call])
 
     @mock.patch.object(utils.subprocess, 'check_call')
     @mock.patch.object(utils, 'log')
@@ -252,14 +253,15 @@ class CephUtilsTestCase(test_utils.CharmTestCase):
         check_call.side_effect = utils.subprocess.CalledProcessError(
             0, mock.MagicMock()
         )
-        expected_call = mock.call(
-            ['ceph', 'osd', 'require-osd-release', release]
-        )
+        expected_call = mock.call([
+            'ceph', 'osd', 'require-osd-release', release,
+            '--yes-i-really-mean-it'
+        ])
 
         with self.assertRaises(utils.OsdPostUpgradeError):
             utils._set_require_osd_release(release)
 
-        check_call.has_calls(expected_call)
+        check_call.assert_has_calls([expected_call])
         log.assert_called_once()
 
     @mock.patch.object(utils, 'relation_ids')
