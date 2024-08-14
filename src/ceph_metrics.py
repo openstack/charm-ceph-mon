@@ -169,10 +169,17 @@ class CephCOSAgentProvider(cos_agent.COSAgentProvider):
 
     def _on_refresh(self, event):
         """Enable prometheus on relation change"""
-        if self._charm.unit.is_leader() and ceph_utils.is_bootstrapped():
-            logger.debug("refreshing cos_agent relation")
-            mgr_config_set_rbd_stats_pools()
-            ceph_utils.mgr_enable_module("prometheus")
+        if not self._charm.unit.is_leader():
+            return
+
+        if not ceph_utils.is_bootstrapped():
+            logger.debug("not bootstrapped, defer _on_refresh: %s", event)
+            event.defer()
+            return
+
+        logger.debug("refreshing cos_agent relation")
+        mgr_config_set_rbd_stats_pools()
+        ceph_utils.mgr_enable_module("prometheus")
         super()._on_refresh(event)
 
     def _on_relation_departed(self, event):
