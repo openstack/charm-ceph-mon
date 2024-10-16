@@ -14,7 +14,6 @@ from ops.testing import Harness
 
 import ceph_metrics  # noqa: avoid circ. import
 import charm
-import helpers
 
 
 class CephMetricsTestBase(unittest.TestCase):
@@ -41,7 +40,6 @@ class CephMetricsTestBase(unittest.TestCase):
         cls.tempdir.cleanup()
 
 
-@helpers.patch_network_get()
 class TestCephMetrics(CephMetricsTestBase):
     def setUp(self):
         super().setUp()
@@ -50,6 +48,7 @@ class TestCephMetrics(CephMetricsTestBase):
         self.harness.begin()
         self.harness.set_leader(True)
         self.harness.charm.metrics_endpoint._alert_rules_path = self.rules_dir
+        self.harness.add_network('10.0.0.10')
 
     def test_init(self):
         self.assertEqual(
